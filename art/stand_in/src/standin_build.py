@@ -378,7 +378,7 @@ def build_upper_torso():
     p = bodice_point(th, 2.0, 0.004)
     n = V(math.cos(th), math.sin(th), 0).normalized()
     up = V(0, 0, 1)
-    across = up.cross(n).normalized() * -1
+    across = up.cross(n).normalized()  # toward the viewer's right, so the text reads
     rot = Matrix.Rotation(math.radians(-7), 3, n)
     across, up = rot @ across, rot @ up
     bw, bh, bt = 0.075, 0.046, 0.004

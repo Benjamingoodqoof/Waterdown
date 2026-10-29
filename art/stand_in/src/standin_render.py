@@ -24,7 +24,7 @@ VIEWS = {
     "three": (None, (0.0, 0.0, 1.27), (-3.1, -4.4, 0.3), 50),
     "back": (None, (0.0, 0.0, 1.27), (2.1, 5.0, 0.25), 50),
     "head": (None, (0.0, 0.0, 2.3), (-0.55, -1.15, 0.05), 60),
-    "badge": (None, (0.05, -0.12, 1.95), (-0.25, -0.95, 0.05), 60),
+    "badge": (None, (0.05, -0.12, 2.0), (-0.14, -0.5, 0.04), 60),
 }
 
 # mimic: what she does when she pretends to be your friend (rotations in degrees, armature axes)
