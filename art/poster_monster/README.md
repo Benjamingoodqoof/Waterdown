@@ -96,9 +96,9 @@ needs a constraint or a special exporter.
 
 | Action | Length | Loop | Feel |
 |---|---|---|---|
-| `Idle` | 120 frames (4 s) | yes | Hunched and still with a slow sway; the head drifts, then snaps to a new angle; fingers twitch, one shoulder shrugs, the peeling sheets flutter |
-| `Walk` | 34 frames (1.13 s) | yes | A slow crouched stalk: light toe-first steps, arms dragging behind the body, the head held steady and tilted, a small twitch each cycle |
-| `Run` | 20 frames (0.67 s) | yes | A predatory run leaning in, the shoulders counter-twisting and the arms pumping forward and back with bent elbows, claws opening at the front of each swing; each joint trails the one above it so the arms stay fluid; the head stays locked ahead; light steps with a short float |
+| `Idle` | 120 frames (4 s) | yes | Hunched and still with a slow sway; the head drifts slowly from side to side; fingers twitch, one shoulder shrugs, the peeling sheets flutter |
+| `Walk` | 34 frames (1.13 s) | yes | A slow crouched stalk: light toe-first steps, arms dragging behind the body, the head held steady and tilted |
+| `Run` | 20 frames (0.67 s) | yes | A predatory run leaning in, the shoulders counter-twisting and the arms swinging loosely like pendulums with relaxed elbows, claws easing open at the front of each swing; the elbow, wrist and fingers trail the upper arm so the swing stays smooth; the head stays locked ahead; light steps with a short float |
 
 The steps are light on purpose (the monster is paper): toes land first, the body barely
 dips, and the run floats between steps.

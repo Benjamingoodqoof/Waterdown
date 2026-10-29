@@ -153,9 +153,8 @@ def flaps(phi, freq, base1, amp1, base2, amp2):
 
 # ---------------------------------------------------------------- the three actions
 def idle(an, phi, f):
-    """Hunched and still, a slow sway; the head drifts, then snaps to a new angle."""
+    """Hunched and still, a slow sway; the head drifts slowly from side to side."""
     br = wave(phi)
-    tw = bump(f, 64, 67, 104)  # the head twitch
     shrug = bump(f, 40, 52, 84)
     flick = bump(f, 28, 30, 40) + bump(f, 92, 94, 101)
     pose = {
@@ -163,7 +162,7 @@ def idle(an, phi, f):
         "Spine": [("x", 10 + 1.5 * br), ("y", -3)],
         "UpperTorso": [("x", 16 + 2 * br), ("y", 5)],
         "Neck": [("x", 24 - br)],
-        "Head": [("x", -16 + 3 * br - 6 * tw), ("y", 21 + 6 * wave(phi, 1, 0.2) - 16 * tw), ("z", -10 + 24 * tw)],
+        "Head": [("x", -16 + 3 * br), ("y", 21 + 6 * wave(phi, 1, 0.2)), ("z", -10 + 3 * wave(phi, 1, 0.45))],
         "LeftShoulder": [("x", 8), ("y", -7 * shrug)],
         "RightShoulder": mirror([("x", 8)], "Right"),
     }
@@ -182,14 +181,13 @@ def idle(an, phi, f):
 def walk(an, phi, f):
     """A slow crouched stalk: light toe-first steps, arms dragging, the head steady and tilted."""
     duty, stride = 0.6, 0.86
-    tw = bump(f, 20, 22, 29)  # a small twitch every cycle
     swing = cwave(phi)
     pose = {
         "LowerTorso": [("x", 10 + 1.5 * cwave(phi, 2)), ("y", -3 * wave(phi, 1, -0.05)), ("z", -5 * swing)],
         "Spine": [("x", 8), ("z", 2 * swing)],
         "UpperTorso": [("x", 14), ("y", 3), ("z", 6 * swing)],
         "Neck": [("x", 22 + 2 * wave(phi, 2, -0.1))],
-        "Head": [("x", -14 - 4 * tw), ("y", 18 + 4 * wave(phi, 1, 0.3) - 9 * tw), ("z", -6 * swing + 14 * tw)],
+        "Head": [("x", -14), ("y", 18 + 4 * wave(phi, 1, 0.3)), ("z", -6 * swing)],
         "LeftShoulder": [("x", 8)],
         "RightShoulder": mirror([("x", 6), ("y", 4)], "Right"),  # one shoulder hangs lower
     }
@@ -211,16 +209,17 @@ def walk(an, phi, f):
 
 
 def run(an, phi, f):
-    """A predatory run, after the reference: leaning in, shoulders counter-twisting, arms pumping
-    forward and back with bent elbows and the claws opening at the front of each swing. Each
-    joint trails the one above it (shoulder, elbow, wrist, fingers) so the arms stay fluid.
-    Light steps with a short float, since the monster is paper."""
+    """A predatory run, after the reference: leaning in, shoulders counter-twisting, the arms
+    swinging loosely like pendulums in front of the body with relaxed elbows, the claws easing
+    open at the front of each swing. The elbow, wrist and fingers trail a little behind the
+    upper arm and move less than it, so the swing reads as one smooth motion. Light steps
+    with a short float, since the monster is paper."""
     duty, stride = 0.4, 1.0
     swing = cwave(phi)  # +1 when the left leg is forward
     pose = {
         "LowerTorso": [("x", 14 + 2 * cwave(phi, 2, -0.1)), ("y", -4 * wave(phi, 1, -0.19)), ("z", -8 * swing)],
-        "Spine": [("x", 9), ("z", 5 * swing)],
-        "UpperTorso": [("x", 9), ("y", 2 * wave(phi, 1, 0.05)), ("z", 12 * cwave(phi, 1, -0.03))],
+        "Spine": [("x", 9), ("z", 4 * swing)],
+        "UpperTorso": [("x", 9), ("y", 2 * wave(phi, 1, 0.05)), ("z", 9 * cwave(phi, 1, -0.03))],
         # the neck and head take back the twist so the gaze stays on the target
         "Neck": [("x", 4 + 3 * cwave(phi, 2, -0.15)), ("z", -6 * cwave(phi, 1, -0.05))],
         "Head": [("x", -24 + 2 * cwave(phi, 2, -0.2)), ("y", 10 + 6 * wave(phi, 1, -0.12)),
@@ -233,14 +232,12 @@ def run(an, phi, f):
             return cwave(phi, 1, -(peak + lag))
 
         a = arc(0.0)
-        pose[f"{side}Shoulder"] = mirror([("z", -10 * arc(-0.03)), ("x", 4)], side)
-        pose[f"{side}UpperArm"] = mirror([("y", 6 + 3 * a), ("x", -30 - 62 * a)], side)
-        pose[f"{side}LowerArm"] = [("x", -55 + 20 * arc(0.09))]
-        pose[f"{side}Hand"] = [("x", -6 + 14 * arc(0.17))]
-        d = arc(0.22)
-        ripple = {fn: 6 * wave(phi, 1, -(peak + 0.22 + 0.05 * i)) for i, fn in enumerate(("Index", "Middle", "Ring", "Pinky"))}
-        pose.update(hand(side, (28 - 18 * d, 26 - 16 * d, 22 - 12 * d), 10 + 10 * d, thumb=(16 - 8 * d,) * 3,
-                         jitter=ripple))
+        pose[f"{side}Shoulder"] = mirror([("z", -6 * arc(-0.02)), ("x", 4)], side)
+        pose[f"{side}UpperArm"] = mirror([("y", 7 + 2 * a), ("x", -20 - 40 * a)], side)
+        pose[f"{side}LowerArm"] = [("x", -42 + 12 * arc(0.08))]
+        pose[f"{side}Hand"] = [("x", -4 + 6 * arc(0.14))]
+        d = arc(0.18)
+        pose.update(hand(side, (24 - 8 * d, 22 - 7 * d, 18 - 6 * d), 12 + 6 * d, thumb=(14 - 4 * d,) * 3))
     pose.update(flaps(phi, 2, 8, 10, 12, 15))
     bob = -0.13 - 0.025 * cwave(phi, 2, -0.19)
     an.fk(pose, {"LowerTorso": (0.015 * wave(phi, 1, 0.06), 0.0, bob)})
