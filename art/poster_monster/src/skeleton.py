@@ -39,10 +39,10 @@ CURL_DEG = (8.0, 11.0, 12.0)
 
 for side, sx in SIDES:
     J[f"clav_{side}"] = V(0.04 * sx, 0.01, 1.965)
-    J[f"shoulder_{side}"] = V(0.235 * sx, 0.014, 1.955)
-    J[f"elbow_{side}"] = J[f"shoulder_{side}"] + V(0.29 * sx, -0.03, -0.957).normalized() * 0.62
-    J[f"wrist_{side}"] = J[f"elbow_{side}"] + V(0.26 * sx, -0.07, -0.963).normalized() * 0.60
-    J[f"hand_{side}"] = J[f"wrist_{side}"] + V(0.22 * sx, -0.06, -0.974).normalized() * 0.11
+    J[f"shoulder_{side}"] = V(0.222 * sx, 0.014, 1.95)
+    J[f"elbow_{side}"] = J[f"shoulder_{side}"] + V(0.25 * sx, -0.03, -0.968).normalized() * 0.62
+    J[f"wrist_{side}"] = J[f"elbow_{side}"] + V(0.23 * sx, -0.07, -0.971).normalized() * 0.60
+    J[f"hand_{side}"] = J[f"wrist_{side}"] + V(0.20 * sx, -0.06, -0.978).normalized() * 0.11
     J[f"hip_{side}"] = V(0.10 * sx, 0.0, 1.27)
     J[f"knee_{side}"] = V(0.118 * sx, -0.03, 0.69)
     J[f"ankle_{side}"] = V(0.132 * sx, 0.012, 0.10)
@@ -97,8 +97,11 @@ def _bone(name, head, tail, parent, radius, roll=V(0, -1, 0)):
     BONES[name] = (Vector(head), Vector(tail), parent, radius, roll)
 
 
-_bone("Root", J["root"], J["root"] + V(0, 0, 0.3), None, 0.0)
-_bone("LowerTorso", J["hips"], J["waist"], "Root", 0.14)
+# Roblox builds the HumanoidRootPart from the rig root, so the root sits at the pelvis
+# (Root > HumanoidRootNode > LowerTorso, as in Roblox's own skinned character rigs).
+_bone("Root", J["hips"], J["hips"] + V(0, 0, 0.12), None, 0.0)
+_bone("HumanoidRootNode", J["hips"], J["hips"] + V(0, 0, 0.1), "Root", 0.0)
+_bone("LowerTorso", J["hips"], J["waist"], "HumanoidRootNode", 0.14)
 _bone("Spine", J["waist"], J["chest"], "LowerTorso", 0.13)
 _bone("UpperTorso", J["chest"], J["neck"], "Spine", 0.16)
 _bone("Neck", J["neck"], J["head"], "UpperTorso", 0.05)
