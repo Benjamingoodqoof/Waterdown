@@ -2,7 +2,7 @@
 
 The floor-1 monster for REM CYCLE: a 9 ft figure covered in the building's soaked promo
 posters, wearing a cracked plastic mask of the company's droplet mascot. Built procedurally
-in Blender 5.2 (`bpy`), rigged for Roblox. Animations are not made yet.
+in Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run).
 
 ![turnaround](renders/turnaround.png)
 
@@ -32,8 +32,11 @@ in Blender 5.2 (`bpy`), rigged for Roblox. Animations are not made yet.
 | Path | What it is |
 |---|---|
 | `export/PosterMonster.fbx` | Rigged model for Roblox's 3D Importer: 8 studs tall, origin at the pelvis, textures embedded |
-| `export/PosterMonster.glb` | Same model as glTF, with 1024 px PBR textures |
-| `poster_monster.blend` | Blender source at real-world size (2.71 m), with rig, weights and materials (textures packed) |
+| `export/PosterMonster_Roblox.blend` | The same 8-stud model and rig with the Idle, Walk and Run actions, for exporting the animations with a Roblox plugin |
+| `export/PosterMonster_Idle.fbx`, `_Walk.fbx`, `_Run.fbx` | One animation each, for the Animation Editor's FBX import |
+| `export/PosterMonster.glb` | Same model as glTF, with 1024 px PBR textures and all three animations |
+| `poster_monster.blend` | Blender source at real-world size (2.71 m), with rig, weights, materials and animations (textures packed) |
+| `renders/animations/` | Preview videos of the three animations |
 | `textures/roblox/` | 1024 px maps for SurfaceAppearance (color, normal, roughness) |
 | `textures/` | 2048 px authoring maps, plus `posters_clean_sheet.png` (undamaged poster art, usable as decals) |
 | `renders/` | Previews: `rest_*` is the pose Studio shows, `idle_*` a hunched pose. `rig_range_of_motion.png` is the deformation test |
@@ -84,6 +87,34 @@ Each mesh is under 10k triangles. The skin has 63 bones and at most 4 bone weigh
 7. To play animations later, the Humanoid's `Animator` works. If you'd rather move the monster
    with your own scripts, use an `AnimationController` with an `Animator` instead.
 
+## Animations
+
+All three are in place (the Humanoid does the moving), 30 fps, keyed on every frame, and
+loop seamlessly (the last frame equals the first). The legs were solved with IK while
+animating so planted feet don't slide, then written out as plain rotation keys, so nothing
+needs a constraint or a special exporter.
+
+| Action | Length | Loop | Feel |
+|---|---|---|---|
+| `Idle` | 120 frames (4 s) | yes | Hunched and still with a slow sway; the head drifts, then snaps to a new angle; fingers twitch, one shoulder shrugs, the peeling sheets flutter |
+| `Walk` | 34 frames (1.13 s) | yes | A slow crouched stalk: light toe-first steps, arms dragging behind the body, the head held steady and tilted, a small twitch each cycle |
+| `Run` | 20 frames (0.67 s) | yes | A lunging run, bent far forward with the head locked ahead; the arms throw forward in turn with the claws splayed; light floating steps with a moment in the air |
+
+The steps are light on purpose (the monster is paper): toes land first, the body barely
+dips, and the run floats between steps.
+
+**Matching speed:** the feet are matched to these ground speeds. At other WalkSpeeds,
+scale the track speed to match, for example
+`track:AdjustSpeed(humanoid.WalkSpeed / 12.9)` for the run.
+
+- **Walk:** 3.7 studs/s
+- **Run:** 12.9 studs/s
+
+**Exporting them yourself:** open `export/PosterMonster_Roblox.blend`. It matches the
+model you imported (8 studs, origin at the pelvis). Pick an action on
+`PosterMonster_Rig` and export it with your plugin. Only `LowerTorso` has translation keys
+(the bob and sway); every other bone is rotation only.
+
 ## Rig
 
 - **Root:** `Root` → `HumanoidRootNode` → `LowerTorso`, both at the pelvis, the bone layout
@@ -106,7 +137,9 @@ python3 textures.py ../textures                          # paint the textures
 python3 build_model.py ../poster_monster.blend           # model, rig and weights
 python3 render.py ../poster_monster.blend ../renders     # previews (--pose rest|idle, --look studio|atrium)
 python3 rig_check.py ../poster_monster.blend ../renders/rig_range_of_motion.png
-python3 export.py ../poster_monster.blend ../export      # FBX + GLB for Roblox (--height-studs 8)
+python3 animate.py ../poster_monster.blend               # keyframe Idle, Walk and Run
+python3 anim_preview.py ../poster_monster.blend ../renders/animations   # preview videos
+python3 export.py ../poster_monster.blend ../export      # FBX, GLB and Roblox .blend (--height-studs 8)
 ```
 
 Everything is seeded, so a rebuild gives the same monster.
