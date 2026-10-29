@@ -98,17 +98,17 @@ needs a constraint or a special exporter.
 |---|---|---|---|
 | `Idle` | 120 frames (4 s) | yes | Hunched and still with a slow sway; the head drifts, then snaps to a new angle; fingers twitch, one shoulder shrugs, the peeling sheets flutter |
 | `Walk` | 34 frames (1.13 s) | yes | A slow crouched stalk: light toe-first steps, arms dragging behind the body, the head held steady and tilted, a small twitch each cycle |
-| `Run` | 20 frames (0.67 s) | yes | A lunging run, bent far forward with the head locked ahead; the arms throw forward in turn with the claws splayed; light floating steps with a moment in the air |
+| `Run` | 20 frames (0.67 s) | yes | A predatory run leaning in, the shoulders counter-twisting and the arms pumping forward and back with bent elbows, claws opening at the front of each swing; each joint trails the one above it so the arms stay fluid; the head stays locked ahead; light steps with a short float |
 
 The steps are light on purpose (the monster is paper): toes land first, the body barely
 dips, and the run floats between steps.
 
 **Matching speed:** the feet are matched to these ground speeds. At other WalkSpeeds,
 scale the track speed to match, for example
-`track:AdjustSpeed(humanoid.WalkSpeed / 12.9)` for the run.
+`track:AdjustSpeed(humanoid.WalkSpeed / 11.1)` for the run.
 
 - **Walk:** 3.7 studs/s
-- **Run:** 12.9 studs/s
+- **Run:** 11.1 studs/s
 
 **Exporting them yourself:** open `export/PosterMonster_Roblox.blend`. It matches the
 model you imported (8 studs, origin at the pelvis). Pick an action on

@@ -211,31 +211,40 @@ def walk(an, phi, f):
 
 
 def run(an, phi, f):
-    """A lunging run: deep lean, arms clawing forward in turn, head locked on; light,
-    floating steps with a moment in the air."""
-    duty, stride = 0.36, 1.05
-    swing = cwave(phi)
+    """A predatory run, after the reference: leaning in, shoulders counter-twisting, arms pumping
+    forward and back with bent elbows and the claws opening at the front of each swing. Each
+    joint trails the one above it (shoulder, elbow, wrist, fingers) so the arms stay fluid.
+    Light steps with a short float, since the monster is paper."""
+    duty, stride = 0.4, 1.0
+    swing = cwave(phi)  # +1 when the left leg is forward
     pose = {
-        "LowerTorso": [("x", 30 + 3 * cwave(phi, 2, -0.1)), ("y", -4 * wave(phi, 1, -0.18)), ("z", -9 * swing)],
-        "Spine": [("x", 16), ("z", 3 * swing)],
-        "UpperTorso": [("x", 14), ("y", 3 * wave(phi, 1, 0.1)), ("z", 10 * swing)],
-        "Neck": [("x", -16 + 4 * wave(phi, 2))],
-        "Head": [("x", -44 + 3 * wave(phi, 2, 0.15)), ("y", 14 + 5 * wave(phi, 1, 0.1) + 2 * wave(phi, 3)),
-                 ("z", -7 * swing + 3 * wave(phi, 3, 0.3))],
+        "LowerTorso": [("x", 14 + 2 * cwave(phi, 2, -0.1)), ("y", -4 * wave(phi, 1, -0.19)), ("z", -8 * swing)],
+        "Spine": [("x", 9), ("z", 5 * swing)],
+        "UpperTorso": [("x", 9), ("y", 2 * wave(phi, 1, 0.05)), ("z", 12 * cwave(phi, 1, -0.03))],
+        # the neck and head take back the twist so the gaze stays on the target
+        "Neck": [("x", 4 + 3 * cwave(phi, 2, -0.15)), ("z", -6 * cwave(phi, 1, -0.05))],
+        "Head": [("x", -24 + 2 * cwave(phi, 2, -0.2)), ("y", 10 + 6 * wave(phi, 1, -0.12)),
+                 ("z", -6 * cwave(phi, 1, -0.08))],
     }
     for side, sx in SIDES:
-        fwd_phase = 0.5 if side == "Left" else 0.0
-        reach = 0.5 - 0.5 * cwave(phi, 1, -(fwd_phase + 0.05))  # 1 = arm thrown forward
-        pose[f"{side}Shoulder"] = mirror([("x", 6 - 10 * reach)], side)
-        pose[f"{side}UpperArm"] = mirror([("y", 8 - 16 * reach), ("x", 40 - 150 * reach)], side)
-        pose[f"{side}LowerArm"] = [("x", -8 - 42 * (1 - reach))]
-        pose[f"{side}Hand"] = [("x", -12 + 24 * reach)]
-        curl = 55 - 60 * reach  # curled while swinging back, claws splayed at the reach
-        pose.update(hand(side, (curl, curl * 0.9, curl * 0.8), 22 * reach, thumb=(curl * 0.5,) * 3))
-    pose.update(flaps(phi, 4, 10, 12, 15, 18))
-    bob = -0.16 - 0.035 * cwave(phi, 2, -0.18)
-    an.fk(pose, {"LowerTorso": (0.02 * wave(phi, 1, 0.07), 0.0, bob)})
-    legs(an, phi, duty, stride, 0.3, 25, 0.12)
+        peak = 0.5 if side == "Left" else 0.0  # each arm is forward as the opposite foot lands
+
+        def arc(lag, peak=peak):
+            return cwave(phi, 1, -(peak + lag))
+
+        a = arc(0.0)
+        pose[f"{side}Shoulder"] = mirror([("z", -10 * arc(-0.03)), ("x", 4)], side)
+        pose[f"{side}UpperArm"] = mirror([("y", 6 + 3 * a), ("x", -30 - 62 * a)], side)
+        pose[f"{side}LowerArm"] = [("x", -55 + 20 * arc(0.09))]
+        pose[f"{side}Hand"] = [("x", -6 + 14 * arc(0.17))]
+        d = arc(0.22)
+        ripple = {fn: 6 * wave(phi, 1, -(peak + 0.22 + 0.05 * i)) for i, fn in enumerate(("Index", "Middle", "Ring", "Pinky"))}
+        pose.update(hand(side, (28 - 18 * d, 26 - 16 * d, 22 - 12 * d), 10 + 10 * d, thumb=(16 - 8 * d,) * 3,
+                         jitter=ripple))
+    pose.update(flaps(phi, 2, 8, 10, 12, 15))
+    bob = -0.13 - 0.025 * cwave(phi, 2, -0.19)
+    an.fk(pose, {"LowerTorso": (0.015 * wave(phi, 1, 0.06), 0.0, bob)})
+    legs(an, phi, duty, stride, 0.28, 20, 0.1)
     SPEEDS["Run"] = stride / (duty * RUN_T / FPS)
 
 

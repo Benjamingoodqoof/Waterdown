@@ -19,7 +19,8 @@ import render  # noqa: E402
 VIEW = {"Idle": (None, (0.0, 0.0, 1.35), (-2.4, -4.6, 0.35), 50),
         "Walk": (None, (0.0, 0.0, 1.25), (-4.4, -3.4, 0.25), 50),
         "Run": (None, (0.0, 0.0, 1.15), (-4.4, -3.6, 0.2), 50),
-        "RunSide": (None, (0.0, 0.0, 1.15), (-5.6, 0.0, 0.2), 50)}
+        "RunSide": (None, (0.0, 0.0, 1.15), (-5.6, 0.0, 0.2), 50),
+        "RunFront": (None, (0.0, 0.0, 1.25), (-1.2, -5.8, 0.15), 50)}
 
 
 def main():
@@ -46,9 +47,10 @@ def main():
             name, view = name.split(":")
         act = bpy.data.actions[name]
         rig.animation_data.action = act
-        render.VIEWS[f"anim_{name}"] = VIEW[view]
-        sc.camera = render.camera(f"Cam_{name}", f"anim_{name}", rig)
-        frames_dir = os.path.join(os.path.abspath(a.out), f"_{name}")
+        tag = name if view == name else f"{name}_{view}"
+        render.VIEWS[f"anim_{tag}"] = VIEW[view]
+        sc.camera = render.camera(f"Cam_{tag}", f"anim_{tag}", rig)
+        frames_dir = os.path.join(os.path.abspath(a.out), f"_{tag}")
         os.makedirs(frames_dir, exist_ok=True)
         frames = list(range(int(act.frame_start), int(act.frame_end), a.step))
         paths = []
@@ -68,7 +70,7 @@ def main():
                 sheet.paste(im, ((i % cols) * w, (i // cols) * h))
                 ImageDraw.Draw(sheet).text(((i % cols) * w + 8, (i // cols) * h + 6), f"{name} {f}", font=font,
                                            fill=(240, 240, 240))
-            sheet.save(os.path.join(a.out, f"{name}_sheet.png"))
+            sheet.save(os.path.join(a.out, f"{tag}_sheet.png"))
         else:
             # loop it three times so the cycle reads in the preview
             listing = os.path.join(frames_dir, "list.txt")
@@ -78,7 +80,7 @@ def main():
                         fh.write(f"file '{p}'\nduration {a.step / 30:.5f}\n")
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", listing, "-vf",
                             "fps=30,format=yuv420p", "-c:v", "libx264", "-crf", "20",
-                            os.path.join(a.out, f"{name}.mp4")], check=True)
+                            os.path.join(a.out, f"{tag}.mp4")], check=True)
         print("done", name)
 
 
