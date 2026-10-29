@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common as C  # noqa: E402
 
 FONT_DIR = "/usr/share/fonts/opentype/inter/"
+POSTER_ART = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "textures", "poster_art"))
 SS = 2  # supersampling for the vector art
 
 
@@ -703,7 +704,11 @@ def build_atlas(rng):
     for i, (design, wet) in enumerate(C.CELLS):
         x0, y0, x1, y1 = C.cell_rect(i)
         if design not in clean:
-            big = PAINTERS[design](C.CELL_W * SS, C.CELL_H * SS, np.random.default_rng(100 + C.DESIGNS.index(design)))
+            art = os.path.join(POSTER_ART, f"{design}.png")
+            if os.path.exists(art):  # rendered poster art from poster_scenes.py
+                big = Image.open(art).convert("RGB").resize((C.CELL_W * SS, C.CELL_H * SS), Image.LANCZOS)
+            else:
+                big = PAINTERS[design](C.CELL_W * SS, C.CELL_H * SS, np.random.default_rng(100 + C.DESIGNS.index(design)))
             clean[design] = to_arr(big.resize((C.CELL_W, C.CELL_H), Image.LANCZOS))
         c, r, h = weather(clean[design], rng, 1.0 if wet else 0.0)
         c = c * (0.84 if not wet else 0.78)

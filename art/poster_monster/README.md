@@ -11,10 +11,13 @@ in Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run).
 - **Body:** gaunt, with a pinched waist, a long thin neck, and arms long enough that the
   rolled-poster claws hang past the knees. Underneath is one merged papier-mâché body, so the
   arms, legs, neck and head grow out of the torso.
-- **Posters:** whole, upright promo posters glued on in overlapping rows, each row over the one
-  below like shingles. They're water-damaged, with tide-line stains, running ink, mold and fold
-  cracks. The lower body is the most soaked, and a couple of sheets are missing so the dark pulp
-  shows.
+- **Posters:** promo posters for the building's company, rendered in Blender in a glossy
+  Frutiger Aero style: glass towers, bubbles, tropical fish, a terrarium, a rainbow, glossy
+  hills. Slogans sell a "promised future" ("Meet your promised future", "Welcome to the
+  promised future", "Smile. Tomorrow is watching."). On the body they're glued on whole and
+  upright in overlapping rows, each row over the one below like shingles. They're
+  water-damaged, with tide-line stains, running ink, mold and fold cracks. The lower body is
+  the most soaked, and a couple of sheets are missing so the dark pulp shows.
 - **Loose sheets:** six posters peel away from the body, each with an older poster underneath.
   They sit on the hip, back, chest, left upper arm, left shin and right thigh, and each has two
   bones so it can flutter.
@@ -39,6 +42,7 @@ in Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run).
 | `renders/animations/` | Preview videos of the three animations |
 | `textures/roblox/` | 1024 px maps for SurfaceAppearance (color, normal, roughness) |
 | `textures/` | 2048 px authoring maps, plus `posters_clean_sheet.png` (undamaged poster art, usable as decals) |
+| `textures/poster_art/` | The nine rendered Frutiger Aero posters ("Meet your promised future" and others), before water damage |
 | `renders/` | Previews: `rest_*` is the pose Studio shows, `idle_*` a hunched pose. `rig_range_of_motion.png` is the deformation test |
 | `src/` | Scripts that generate all of the above |
 
@@ -133,7 +137,8 @@ Names follow R15 where a matching bone exists.
 Needs `pip install bpy` (Blender as a Python module), Pillow and numpy. Run from `src/`:
 
 ```bash
-python3 textures.py ../textures                          # paint the textures
+python3 poster_scenes.py ../textures/poster_art         # render the nine poster images (Cycles)
+python3 textures.py ../textures                          # damage them and build the texture atlas
 python3 build_model.py ../poster_monster.blend           # model, rig and weights
 python3 render.py ../poster_monster.blend ../renders     # previews (--pose rest|idle, --look studio|atrium)
 python3 rig_check.py ../poster_monster.blend ../renders/rig_range_of_motion.png

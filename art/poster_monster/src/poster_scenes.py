@@ -2,7 +2,9 @@
 """Renders original Frutiger Aero poster art in Blender (glass towers, grass, soap bubbles,
 tropical fish, a glossy globe) and lays the slogans over it.
 
-Usage: python3 poster_scenes.py OUT_DIR [--only NAME] [--samples 64]
+The textures script picks these up from textures/poster_art/ in place of its drawn posters.
+
+Usage: python3 poster_scenes.py OUT_DIR [--only NAME] [--samples 64] [--percent 100]
 """
 import argparse
 import math
@@ -10,7 +12,7 @@ import os
 import random
 
 import bpy  # noqa: I001  (bpy must load before mathutils)
-from mathutils import Vector
+from mathutils import Vector, noise
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 FONT_DIR = "/usr/share/fonts/opentype/inter/"
@@ -134,9 +136,9 @@ def cloud(loc, size, seed, facing):
     b.inputs["Roughness"].default_value = 1.0
     b.inputs["Emission Color"].default_value = (1, 1, 1, 1)
     b.inputs["Emission Strength"].default_value = 0.6
-    ob = mesh_obj(f"Cloud{seed}", [(-1, 0, -0.55), (1, 0, -0.55), (1, 0, 0.55), (-1, 0, 0.55)], [(0, 1, 2, 3)], m)
+    ob = mesh_obj(f"Cloud{seed}", [(-1, 0, -1), (1, 0, -1), (1, 0, 1), (-1, 0, 1)], [(0, 1, 2, 3)], m)
     ob.location = loc
-    ob.scale = (size, size, size)
+    ob.scale = (size, size, size * 0.55)
     ob.rotation_euler = (Vector(facing) - Vector(loc)).to_track_quat("-Y", "Z").to_euler()
     return ob
 
@@ -189,51 +191,202 @@ def glass_tower(name, x, y, w, d, h, tint, rot=0.0):
     return ob
 
 
-def grass_field(x0, x1, y0, y1, count=90000, length=0.32):
-    """Hair grass on a patch in front of the camera, over a lawn that runs to the horizon."""
-    m, nt, b = node_mat("Grass")
-    b.inputs["Base Color"].default_value = (0.2, 0.62, 0.03, 1)
-    b.inputs["Roughness"].default_value = 0.45
-    b.inputs["Subsurface Weight"].default_value = 0.2
-    try:
-        b.inputs["Subsurface Radius"].default_value = (0.1, 0.4, 0.05)
-    except (KeyError, TypeError):
-        pass
-    lawn, lt, lb = node_mat("Lawn")
-    nz = lt.nodes.new("ShaderNodeTexNoise")
-    nz.inputs["Scale"].default_value = 60
-    ramp = lt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].color = (0.06, 0.3, 0.02, 1)
-    ramp.color_ramp.elements[1].color = (0.25, 0.6, 0.05, 1)
-    lt.links.new(nz.outputs["Fac"], ramp.inputs["Fac"])
-    lt.links.new(ramp.outputs["Color"], lb.inputs["Base Color"])
-    lb.inputs["Roughness"].default_value = 0.6
-    mesh_obj("Lawn", [(-200, y0, 0), (200, y0, 0), (200, 300, 0), (-200, 300, 0)], [(0, 1, 2, 3)], lawn)
-    ground = mesh_obj("Ground", [(x0, y0, 0.001), (x1, y0, 0.001), (x1, y1, 0.001), (x0, y1, 0.001)], [(0, 1, 2, 3)], lawn)
-    ground.data.materials.append(m)
-    ground.modifiers.new("grass", "PARTICLE_SYSTEM")
-    st = ground.particle_systems[0].settings
-    st.type = "HAIR"
-    st.count = count
-    st.hair_length = length
-    st.material = 2
-    st.use_advanced_hair = True
-    st.normal_factor = length  # with advanced hair the emit velocity sets the blade length
-    st.factor_random = length * 0.25
-    st.brownian_factor = 0.0
-    st.child_type = "INTERPOLATED"
-    st.child_percent = 4
-    st.rendered_child_count = 3
-    st.roughness_endpoint = 0.06
-    st.roughness_2 = 0.08
-    st.child_length = 0.9
-    st.child_length_threshold = 0.3
-    st.root_radius = 1.0
-    st.tip_radius = 0.0
-    st.radius_scale = 0.0016
-    st.display_step = 3
-    st.render_step = 4
-    return ground
+def hills(seed=1, height=2.4, size=160, near=0.0, flat=18.0, n=90):
+    """Stylized Frutiger Aero hills: smooth glossy rolling green, flat near the camera."""
+    m, nt, b = node_mat(f"Hills{seed}")
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    cr = ramp.color_ramp
+    cr.elements[0].position, cr.elements[0].color = 0.0, (0.03, 0.28, 0.02, 1)
+    cr.elements[1].position, cr.elements[1].color = 1.0, (0.55, 0.9, 0.08, 1)
+    e = cr.elements.new(0.45)
+    e.color = (0.12, 0.6, 0.03, 1)
+    mr = nt.nodes.new("ShaderNodeMapRange")
+    mr.inputs["From Min"].default_value = -0.2
+    mr.inputs["From Max"].default_value = height
+    nt.links.new(tc.outputs["Object"], sep.inputs["Vector"])
+    nt.links.new(sep.outputs["Z"], mr.inputs["Value"])
+    nt.links.new(mr.outputs["Result"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], b.inputs["Base Color"])
+    b.inputs["Roughness"].default_value = 0.32
+    b.inputs["Coat Weight"].default_value = 0.6
+    b.inputs["Coat Roughness"].default_value = 0.15
+    verts, faces = [], []
+    for j in range(n + 1):
+        y = near + size * (j / n) ** 1.6
+        rise = min(1.0, max(0.0, (y - near) / flat))
+        for i in range(n + 1):
+            x = -size / 2 + size * i / n
+            z = height * rise * (0.55 + 0.45 * noise.noise(Vector((x * 0.035, y * 0.035, seed))))
+            z += 0.25 * rise * noise.noise(Vector((x * 0.12, y * 0.12, seed + 5)))
+            verts.append((x, y, z))
+    for j in range(n):
+        for i in range(n):
+            k = j * (n + 1) + i
+            faces.append((k, k + 1, k + n + 2, k + n + 1))
+    ob = mesh_obj(f"Hills{seed}", verts, faces, m)
+    ob.data.shade_smooth()
+    return ob
+
+
+def glossy(name, color, rough=0.08, coat=1.0, transmission=0.0, emit=None, strength=0.0):
+    m, nt, b = node_mat(name)
+    b.inputs["Base Color"].default_value = (*color, 1)
+    b.inputs["Roughness"].default_value = rough
+    b.inputs["Coat Weight"].default_value = coat
+    b.inputs["Coat Roughness"].default_value = 0.03
+    b.inputs["Transmission Weight"].default_value = transmission
+    if emit:
+        b.inputs["Emission Color"].default_value = (*emit, 1)
+        b.inputs["Emission Strength"].default_value = strength
+    return m
+
+
+def droplet_mesh(name, loc, height, mat, m=1.1, width=0.74):
+    """A teardrop, point up, built by pinching a sphere."""
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1, segments=64, ring_count=32)
+    ob = bpy.context.active_object
+    ob.name = name
+    ts = [i / 1000 * math.pi for i in range(1, 1000)]
+    k = max(math.sin(t) * math.sin(t / 2) ** m for t in ts)
+    for v in ob.data.vertices:
+        t = math.acos(max(-1.0, min(1.0, v.co.z)))
+        f = (abs(math.sin(t / 2)) ** m) / k * width
+        v.co.x *= f
+        v.co.y *= f
+    ob.scale = (height / 2,) * 3
+    ob.location = loc
+    ob.data.materials.append(mat)
+    bpy.ops.object.shade_smooth()
+    return ob
+
+
+def mascot(loc, height, rot_z=0.0, eyes="empty"):
+    """The company's droplet mascot in glossy blue plastic. Its eyes are black voids."""
+    body = droplet_mesh("Mascot", loc, height, glossy("MascotBlue", (0.05, 0.35, 0.95), rough=0.12))
+    black = glossy("MascotBlack", (0.005, 0.005, 0.008), rough=0.2, coat=0.5)
+    s = height / 2
+    face_z = loc[2] - 0.38 * s
+    parts = []
+    for side in (-1, 1):
+        e = uv_sphere("Eye", (loc[0] + side * 0.24 * s, loc[1] - 0.69 * s, face_z + 0.12 * s), 0.11 * s, black,
+                      scale=(1.0, 0.45, 1.5), seg=24, rings=12)
+        parts.append(e)
+    # the grin: a thick curved tube
+    cd = bpy.data.curves.new("Smile", "CURVE")
+    cd.dimensions = "3D"
+    cd.bevel_depth = 0.035 * s
+    sp = cd.splines.new("POLY")
+    pts = []
+    for i in range(13):
+        u = -1 + 2 * i / 12
+        x = u * 0.36 * s
+        z = face_z - 0.16 * s - 0.13 * s * (1 - u * u)
+        yy = loc[1] - 0.73 * s * (1 - 0.3 * u * u)
+        pts.append((loc[0] + x, yy, z))
+    sp.points.add(len(pts) - 1)
+    for pt, co in zip(sp.points, pts):
+        pt.co = (*co, 1)
+    smile = link(bpy.data.objects.new("Smile", cd))
+    smile.data.materials.append(glossy("Grin", (0.5, 0.02, 0.05), rough=0.25))
+    parts.append(smile)
+    for p in parts:
+        p.parent = body
+        p.matrix_parent_inverse = body.matrix_world.inverted()
+    body.rotation_euler = (0, 0, rot_z)
+    return body
+
+
+def orb(loc, r, color):
+    """A glossy Frutiger orb, half see-through."""
+    return uv_sphere("Orb", loc, r, glossy(f"Orb{len(bpy.data.materials)}", color, rough=0.03, transmission=0.45),
+                     seg=48, rings=24)
+
+
+def leaf(loc, length, rot, color=(0.15, 0.62, 0.05)):
+    verts, faces = [], []
+    n = 12
+    for i in range(n + 1):
+        t = i / n
+        w = math.sin(math.pi * t) * 0.32 * length
+        bend = 0.18 * length * math.sin(math.pi * t)
+        verts += [(t * length, -w, bend), (t * length, w, bend), (t * length, 0, bend + 0.03 * length)]
+    for i in range(n):
+        a, b = 3 * i, 3 * (i + 1)
+        faces += [(a, b, b + 2, a + 2), (a + 2, b + 2, b + 1, a + 1)]
+    ob = mesh_obj("Leaf", verts, faces, glossy(f"Leaf{len(bpy.data.materials)}", color, rough=0.2, coat=0.8))
+    ob.data.shade_smooth()
+    ob.location = loc
+    ob.rotation_euler = rot
+    sol = ob.modifiers.new("solid", "SOLIDIFY")
+    sol.thickness = 0.01 * length
+    return ob
+
+
+def crt(loc, size, rot_z=0.0):
+    """A glossy old computer monitor whose screen shows a bright sky."""
+    shell = glossy("CRTShell", (0.85, 0.88, 0.9), rough=0.25, coat=0.6)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
+    body = bpy.context.active_object
+    body.scale = (size, size * 0.9, size * 0.82)
+    body.data.materials.append(shell)
+    bev = body.modifiers.new("bevel", "BEVEL")
+    bev.width = size * 0.06
+    bev.segments = 4
+    m, nt, b = node_mat("Screen")
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = (0.6, 0.9, 1.0, 1)
+    ramp.color_ramp.elements[1].color = (0.0, 0.25, 0.9, 1)
+    nt.links.new(tc.outputs["Generated"], sep.inputs["Vector"])
+    nt.links.new(sep.outputs["Y"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], b.inputs["Emission Color"])
+    b.inputs["Emission Strength"].default_value = 2.5
+    b.inputs["Base Color"].default_value = (0.02, 0.05, 0.1, 1)
+    b.inputs["Roughness"].default_value = 0.05
+    b.inputs["Coat Weight"].default_value = 1.0
+    sx, sz = size * 0.38, size * 0.31
+    screen = mesh_obj("Screen", [(-sx, 0, -sz), (sx, 0, -sz), (sx, 0, sz), (-sx, 0, sz)], [(0, 1, 2, 3)], m)
+    screen.location = (loc[0], loc[1] - size * 0.455, loc[2] + size * 0.03)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(loc[0], loc[1], loc[2] - size * 0.5))
+    stand = bpy.context.active_object
+    stand.scale = (size * 0.5, size * 0.5, size * 0.12)
+    stand.data.materials.append(shell)
+    for ob in (screen, stand):
+        ob.parent = body
+        ob.matrix_parent_inverse = body.matrix_world.inverted()
+    body.rotation_euler = (0, 0, rot_z)
+
+
+def light_shaft(loc, length, width, tilt):
+    m, nt, b = node_mat(f"Shaft{len(bpy.data.materials)}")
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = (0, 0, 0, 1)
+    ramp.color_ramp.elements[1].color = (0.35, 0.35, 0.35, 1)
+    nt.links.new(tc.outputs["Generated"], sep.inputs["Vector"])
+    nt.links.new(sep.outputs["Z"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], b.inputs["Alpha"])
+    b.inputs["Base Color"].default_value = (0, 0, 0, 1)
+    b.inputs["Emission Color"].default_value = (0.7, 0.95, 1.0, 1)
+    b.inputs["Emission Strength"].default_value = 1.6
+    ob = mesh_obj("Shaft", [(-width / 2, 0, 0), (width / 2, 0, 0), (width / 2, 0, length), (-width / 2, 0, length)],
+                  [(0, 1, 2, 3)], m)
+    ob.location = loc
+    ob.rotation_euler = (0, tilt, 0)
+    return ob
+
+
+def sky_gradient(top, mid, bottom):
+    """Override the sky colours (for underwater or sunset scenes)."""
+    nt = bpy.context.scene.world.node_tree
+    ramp = next(n for n in nt.nodes if n.type == "VALTORGB")
+    cr = ramp.color_ramp
+    cols = sorted(cr.elements, key=lambda e: e.position)
+    cols[0].color, cols[1].color, cols[2].color = (*bottom, 1), (*mid, 1), (*top, 1)
 
 
 def bubble(loc, r, thickness):
@@ -353,39 +506,172 @@ def globe(loc, r):
 
 
 # ---------------------------------------------------------------- scenes
-def scene_promised(samples):
-    """Low angle from the grass up at glass towers, a globe in the sky, fish and bubbles."""
+def base(samples, seed, sun_elev=40, clouds_n=10, cloud_y=60):
     sc = reset()
     sc.cycles.samples = samples
-    rnd = random.Random(3)
-    sky(sun_elev=42, sun_rot=215)
-    grass_field(-4.0, 4.0, 0.2, 6.0, count=120000, length=0.22)
+    rnd = random.Random(seed)
+    sky(sun_elev=sun_elev, sun_rot=215)
+    for i in range(clouds_n):
+        cloud((rnd.uniform(-24, 24), cloud_y, rnd.uniform(8, 38)), rnd.uniform(6, 11), i + seed * 20, (0, 0, 1))
+    return rnd
+
+
+def bubbles(rnd, n, x, y, z, r=(0.06, 0.26)):
+    for _ in range(n):
+        bubble((rnd.uniform(*x), rnd.uniform(*y), rnd.uniform(*z)), rnd.uniform(*r), rnd.uniform(250, 750))
+
+
+def scene_tomorrow(samples):
+    """Glass towers from the hills, a globe in the sky, fish and bubbles in the air."""
+    rnd = base(samples, 3)
+    hills(seed=3, height=1.8, near=0.0, flat=10)
     towers = [(-3.5, 14, 2.2, 2.2, 26, (0.01, 0.07, 0.22)), (1.8, 18, 3.0, 2.5, 34, (0.01, 0.09, 0.26)),
               (6.5, 13, 2.4, 2.4, 22, (0.02, 0.08, 0.2)), (-8.0, 20, 3.2, 3.0, 30, (0.01, 0.06, 0.18)),
               (10.5, 22, 3.0, 3.0, 28, (0.01, 0.08, 0.24)), (-1.2, 26, 2.6, 2.6, 40, (0.01, 0.07, 0.2))]
     for i, (x, y, w, d, h, tint) in enumerate(towers):
         glass_tower(f"Tower{i}", x, y, w, d, h, tint, rot=math.radians(rnd.uniform(-12, 12)))
     globe((-2.6, 9.0, 7.6), 1.25)
-    for i in range(10):
-        cloud((rnd.uniform(-22, 22), 60, rnd.uniform(10, 40)), rnd.uniform(6, 11), i, (0, 0, 1))
-    for i in range(22):
-        bubble((rnd.uniform(-1.6, 2.0), rnd.uniform(1.6, 5.5), rnd.uniform(0.7, 3.6)), rnd.uniform(0.06, 0.26),
-               rnd.uniform(250, 750))
-    fish("Clown", (0.9, 2.3, 1.15), 0.95, (-30, -8), "clown")
-    fish("Clown2", (-0.55, 3.6, 2.5), 0.5, (25, 5), "clown")
-    fish("Tang", (-1.25, 4.2, 3.4), 0.85, (15, 0), "tang")
-    fish("Yellow", (1.5, 4.8, 3.3), 0.55, (160, 6), "yellow")
-    fish("Yellow2", (-1.6, 3.0, 1.6), 0.4, (-20, 0), "yellow")
-    camera((0.2, -0.6, 0.38), (0.3, 10, 7.0), lens=22)
+    bubbles(rnd, 20, (-1.8, 2.2), (1.8, 5.5), (1.0, 4.2))
+    fish("Clown", (0.9, 2.3, 1.6), 0.95, (-30, -8), "clown")
+    fish("Clown2", (-0.55, 3.6, 2.9), 0.5, (25, 5), "clown")
+    fish("Tang", (-1.25, 4.2, 3.6), 0.85, (15, 0), "tang")
+    fish("Yellow", (1.5, 4.8, 3.6), 0.55, (160, 6), "yellow")
+    camera((0.2, -0.6, 0.9), (0.3, 10, 7.0), lens=22)
 
 
+def scene_pure(samples):
+    """A giant glass water drop standing on the hills."""
+    rnd = base(samples, 5)
+    hills(seed=5, height=2.2, near=0.0, flat=14)
+    water = glossy("Water", (0.75, 0.92, 1.0), rough=0.0, coat=0.0, transmission=1.0)
+    nt = water.node_tree
+    next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED").inputs["IOR"].default_value = 1.33
+    droplet_mesh("Drop", (0.0, 7.0, 2.25), 4.2, water)
+    bubbles(rnd, 14, (-1.0, 1.0), (6.4, 7.6), (0.8, 3.0), (0.04, 0.14))
+    bubbles(rnd, 10, (-3.2, 3.2), (3.0, 6.0), (0.6, 4.5))
+    camera((0.0, -1.5, 1.2), (0.0, 7.0, 2.6), lens=30)
+
+
+def scene_tower(samples):
+    """The building itself: a rounded glass tower above a koi pond."""
+    rnd = base(samples, 7)
+    hills(seed=7, height=2.0, near=0.0, flat=12)
+    tower = glass_tower("Main", 0.0, 20.0, 6.0, 6.0, 34, (0.01, 0.1, 0.3))
+    bev = tower.modifiers.new("round", "BEVEL")
+    bev.width = 2.6
+    bev.segments = 10
+    for i, x in enumerate((-9.0, 9.5)):
+        glass_tower(f"Wing{i}", x, 24.0, 5.0, 5.0, 18 + 4 * i, (0.01, 0.08, 0.24))
+    pond = uv_sphere("Pond", (0.0, 7.0, 0.05), 3.2, glossy("PondWater", (0.0, 0.25, 0.6), rough=0.02),
+                     scale=(1.4, 0.7, 0.01))
+    for k in range(4):
+        fish(f"Koi{k}", (rnd.uniform(-2.5, 2.5), rnd.uniform(6.0, 8.0), 0.12), 0.45, (rnd.uniform(0, 360), 0), "clown")
+    bubbles(rnd, 12, (-4, 4), (4, 10), (1.0, 6.0), (0.1, 0.35))
+    _ = pond
+    camera((0.0, -3.0, 2.2), (0.0, 20.0, 14.0), lens=24)
+
+
+def scene_flow(samples):
+    """Underwater: light shafts, a school of fish and bubbles rising."""
+    rnd = base(samples, 9, clouds_n=0)
+    sky_gradient((0.55, 0.95, 1.0), (0.0, 0.45, 0.75), (0.0, 0.08, 0.22))
+    for i in range(6):
+        light_shaft((rnd.uniform(-6, 6), rnd.uniform(10, 18), -2), 24, rnd.uniform(0.8, 2.2), rnd.uniform(-0.35, 0.35))
+    kinds = ("clown", "tang", "yellow")
+    for k in range(14):
+        fish(f"School{k}", (rnd.uniform(-3, 3), rnd.uniform(5, 12), rnd.uniform(-1.5, 3.5)), rnd.uniform(0.4, 0.9),
+             (rnd.uniform(-40, 40) + (180 if k % 3 == 0 else 0), rnd.uniform(-10, 10)), kinds[k % 3])
+    bubbles(rnd, 40, (-3, 3), (2, 9), (-2, 5), (0.04, 0.22))
+    for k in range(5):
+        orb((rnd.uniform(-2.5, 2.5), rnd.uniform(4, 8), rnd.uniform(-1, 4)), rnd.uniform(0.15, 0.35), (0.3, 0.85, 1.0))
+    camera((0.0, -2.0, 1.0), (0.0, 10.0, 1.6), lens=26)
+
+
+def scene_hydrated(samples):
+    """A glass terrarium globe on the hills, a little tree growing inside."""
+    rnd = base(samples, 11)
+    hills(seed=11, height=2.0, near=0.0, flat=10)
+    glass = glossy("Terrarium", (0.9, 0.97, 1.0), rough=0.0, coat=0.0, transmission=1.0)
+    uv_sphere("Terrarium", (0.0, 4.2, 1.75), 1.75, glass, seg=64, rings=32)
+    uv_sphere("Moss", (0.0, 4.2, 0.35), 1.45, glossy("Moss", (0.18, 0.62, 0.06), rough=0.3, coat=0.6),
+              scale=(1.0, 1.0, 0.35))
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.09, depth=1.3, location=(0.0, 4.2, 1.15))
+    bpy.context.active_object.data.materials.append(glossy("Trunk", (0.25, 0.13, 0.05), rough=0.4, coat=0.3))
+    for dx, dz, r in ((0.0, 2.1, 0.62), (-0.42, 1.85, 0.45), (0.45, 1.9, 0.48)):
+        uv_sphere("Canopy", (dx, 4.2, dz), r, glossy(f"Canopy{dx}", (0.2, 0.7, 0.08), rough=0.25, coat=0.7))
+    bubbles(rnd, 20, (-3, 3), (1.6, 3.4), (0.4, 5.0), (0.06, 0.3))
+    camera((0.0, -1.6, 1.6), (0.0, 4.2, 2.0), lens=32)
+
+
+def scene_green(samples):
+    """A glossy globe resting in the hills among big leaves."""
+    rnd = base(samples, 13)
+    hills(seed=13, height=2.3, near=0.0, flat=12)
+    globe((0.0, 6.0, 1.9), 1.7)
+    for k in range(7):
+        a = 2 * math.pi * k / 7
+        leaf((math.cos(a) * 1.3, 6.0 + math.sin(a) * 0.9, 0.7), rnd.uniform(1.6, 2.4),
+             (rnd.uniform(-0.4, 0.2), -0.6, a), (rnd.uniform(0.1, 0.25), rnd.uniform(0.55, 0.7), 0.05))
+    bubbles(rnd, 18, (-3, 3), (3, 7), (0.6, 5.0))
+    camera((0.0, -1.2, 1.6), (0.0, 6.0, 2.2), lens=30)
+
+
+def scene_funday(samples):
+    """Glossy orbs drifting over the hills."""
+    rnd = base(samples, 15)
+    hills(seed=15, height=2.6, near=0.0, flat=12)
+    cols = [(0.0, 0.6, 1.0), (0.2, 0.9, 0.3), (1.0, 0.75, 0.1), (0.95, 0.3, 0.55), (0.55, 0.3, 1.0)]
+    for k in range(11):
+        orb((rnd.uniform(-3.5, 3.5), rnd.uniform(4, 11), rnd.uniform(1.0, 6.0)), rnd.uniform(0.3, 0.9), cols[k % 5])
+    bubbles(rnd, 14, (-3, 3), (2, 6), (0.6, 5))
+    camera((0.0, -1.0, 1.4), (0.0, 8.0, 3.4), lens=26)
+
+
+def scene_visitor(samples):
+    """An old computer on the hills, fish swimming out of its sky-blue screen."""
+    rnd = base(samples, 17)
+    hills(seed=17, height=2.0, near=0.0, flat=8)
+    crt((0.5, 4.0, 1.25), 1.9, rot_z=math.radians(-22))
+    for k, kind in enumerate(("clown", "tang", "yellow", "clown")):
+        fish(f"Out{k}", (-0.1 - 0.5 * k, 3.0 - 0.25 * k, 1.2 + 0.25 * k), 0.45 + 0.08 * k, (165 + 8 * k, 6), kind)
+    bubbles(rnd, 18, (-2.5, 1.5), (2.0, 4.5), (0.8, 2.6))
+    camera((0.0, -1.6, 1.5), (-0.2, 4.0, 1.9), lens=28)
+
+
+def scene_smile(samples):
+    """A rainbow arcing over the hills, bubbles drifting up into it."""
+    rnd = base(samples, 19, sun_elev=55)
+    hills(seed=19, height=2.4, near=0.0, flat=10)
+    cols = [(1.0, 0.1, 0.1), (1.0, 0.5, 0.0), (1.0, 0.95, 0.1), (0.1, 0.9, 0.2), (0.1, 0.5, 1.0), (0.5, 0.2, 1.0)]
+    for k, col in enumerate(cols):
+        m, nt, b = node_mat(f"Bow{k}")
+        b.inputs["Base Color"].default_value = (0, 0, 0, 1)
+        b.inputs["Emission Color"].default_value = (*col, 1)
+        b.inputs["Emission Strength"].default_value = 1.4
+        b.inputs["Alpha"].default_value = 0.55
+        bpy.ops.mesh.primitive_torus_add(major_radius=11.0 - 0.32 * k, minor_radius=0.16, major_segments=96,
+                                         minor_segments=8, location=(0.0, 30.0, -2.0), rotation=(math.pi / 2, 0, 0))
+        bpy.context.active_object.data.materials.append(m)
+    bubbles(rnd, 26, (-3.5, 3.5), (4, 9), (1, 7), (0.08, 0.35))
+    camera((0.0, -1.0, 1.3), (0.0, 20.0, 5.0), lens=26)
+
+
+# atlas slot: (scene, title, where the title goes, small line)
 SCENES = {
-    "promised": (scene_promised, "Meet\nyour\npromised\nfuture", "Your future has been reserved."),
+    "tomorrow": (scene_tomorrow, "Meet\nyour\npromised\nfuture", "bottom", "Your future has been reserved."),
+    "pure": (scene_pure, "Pure.\nClean.\nPromised.", "top", "Every drop, for every tomorrow."),
+    "tower": (scene_tower, "The future\nis clear", "top", "Now open. Come inside."),
+    "flow": (scene_flow, "Dive into\ntomorrow", "bottom", "The future is fluid."),
+    "hydrated": (scene_hydrated, "Stay happy.\nStay hydrated.", "bottom", "We are always here for you."),
+    "green": (scene_green, "The whole\nworld,\npromised.", "top", "Growing greener together."),
+    "funday": (scene_funday, "Your future\nstarts today", "bottom", "Family fun day. Everyone welcome."),
+    "visitor": (scene_visitor, "Welcome to\nthe promised\nfuture", "top", "Please stay in the bright areas."),
+    "smile": (scene_smile, "Smile.\nTomorrow\nis watching.", "bottom", "Thank you for staying."),
 }
 
 
 # ---------------------------------------------------------------- slogan overlay
-def overlay(path, title, small):
+def overlay(path, title, small, where="bottom"):
     img = ImageEnhance.Contrast(ImageEnhance.Color(Image.open(path).convert("RGB")).enhance(1.35)).enhance(1.08)
     img = img.convert("RGBA")
     w, h = img.size
@@ -398,7 +684,11 @@ def overlay(path, title, small):
     lines = title.split("\n")
     size = int(h * 0.105)
     font = ImageFont.truetype(f"{FONT_DIR}InterDisplay-Bold.otf", size)
-    y0 = h - len(lines) * size * 0.98 - h * 0.045
+    widest = max(font.getlength(line) for line in lines)
+    if widest > w * 0.9:  # long lines shrink to fit the sheet
+        size = int(size * w * 0.9 / widest)
+        font = ImageFont.truetype(f"{FONT_DIR}InterDisplay-Bold.otf", size)
+    y0 = h - len(lines) * size * 0.98 - h * 0.045 if where == "bottom" else h * 0.075
     text = Image.new("RGBA", img.size, (0, 0, 0, 0))
     td = ImageDraw.Draw(text)
     for i, line in enumerate(lines):
@@ -410,7 +700,8 @@ def overlay(path, title, small):
     img.alpha_composite(halo)
     img.alpha_composite(text)
     small_font = ImageFont.truetype(f"{FONT_DIR}Inter-Medium.otf", int(h * 0.022))
-    ImageDraw.Draw(img).text((w * 0.045, h * 0.03), small, font=small_font, fill=(255, 255, 255, 235))
+    small_y = h * 0.03 if where == "bottom" else h * 0.95
+    ImageDraw.Draw(img).text((w * 0.045, small_y), small, font=small_font, fill=(255, 255, 255, 235))
     return img.convert("RGB")
 
 
@@ -422,7 +713,7 @@ def main():
     ap.add_argument("--percent", type=int, default=100)
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
-    for name, (build, title, small) in SCENES.items():
+    for name, (build, title, where, small) in SCENES.items():
         if a.only and name != a.only:
             continue
         build(a.samples)
@@ -430,7 +721,8 @@ def main():
         raw = os.path.join(a.out, f"{name}_raw.png")
         bpy.context.scene.render.filepath = raw
         bpy.ops.render.render(write_still=True)
-        overlay(raw, title, small).save(os.path.join(a.out, f"{name}.png"))
+        overlay(raw, title, small, where).save(os.path.join(a.out, f"{name}.png"))
+        os.remove(raw)
         print("poster", name)
 
 
