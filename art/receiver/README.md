@@ -40,8 +40,11 @@ procedurally in Blender 5.2 (`bpy`) and rigged for Roblox.
   - The fingers are ribbed cords with chrome claw tips. His right hand is an open claw.
   - His left hand grips the handset. The handset's cord is a real coil, running from the
     back of the phone to the handset.
-- **Feet:** cords splay into clawed toes. Others spill onto the floor round his feet in loose
-  loops, ending in a plug and a torn end. More plugs hang from his left forearm and right hip.
+- **Feet:** ordinary feet, made of cord: a sole of three cords along the floor, two cords
+  wrapped round the heel, an instep of three cords running down from the ankle, and toes that
+  are just the rounded ends of the cords (`renders/studio_feet.png`).
+- **Plugs:** loose cords ending in phone plugs hang from his left forearm, his right hip and
+  under the phone.
 - **Alarm:** in the floor-4 alarm, his shell glows red and his finger holes and the pinprick
   in his socket burn red (`renders/closet_alarm_three.png`).
 
@@ -54,7 +57,7 @@ procedurally in Blender 5.2 (`bpy`) and rigged for Roblox.
 | `export/Receiver.glb` | Same model as glTF with PBR textures |
 | `receiver.blend` | Blender source at real-world size (2.3 m to the top of his head as he stands hunched), with rig, weights and materials |
 | `textures/roblox/` | The maps for SurfaceAppearance, all 1024 px (see Importing) |
-| `renders/` | Previews: `studio_*` (the pose Studio shows), `closet_three` and `closet_alarm_three` (in a dark closet, and in the alarm). `rom_sheet.png` is the deformation test |
+| `renders/` | Previews: `studio_*` (the pose Studio shows, plus close-ups of the head, dial, hand and feet), `closet_three` and `closet_alarm_three` (in a dark closet, and in the alarm). `rom_sheet.png` is the deformation test |
 | `src/` | Scripts that generate all of the above |
 
 ## Budget
@@ -66,7 +69,7 @@ procedurally in Blender 5.2 (`bpy`) and rigged for Roblox.
 | LeftArm / RightArm | 7,680 / 7,432 | cord |
 | LeftHand / RightHand | 2,000 / 2,224 | cord |
 | LeftLeg / RightLeg | 7,960 / 8,208 | cord |
-| LeftFoot / RightFoot | 1,888 / 2,064 | cord |
+| LeftFoot / RightFoot | 1,672 / 1,672 | cord |
 | Head (base, cradle, socket) | 1,348 | props |
 | Shell (glass) | 2,308 | glass |
 | Water | 2,400 | water |
@@ -76,7 +79,7 @@ procedurally in Blender 5.2 (`bpy`) and rigged for Roblox.
 | Details (plugs, claw tips, copper) | 3,528 | props |
 | DialGlow | 320 | none (for the alarm) |
 | SocketLight | 120 | none (for the alarm) |
-| **Total** | **70,018** | |
+| **Total** | **68,448** | |
 
 Each mesh is under 10k triangles and has at most 4 bone weights per vertex. He's heavier than
 the poster monster (21k), because the cords are real geometry. If he's too heavy on mobile, a
@@ -185,7 +188,6 @@ How the parts follow the bones:
 - **Handset cord:** blends from `Head` to `LeftHand` along its length, so it stretches when he
   moves his arm.
 - **Phone, dial and handset:** rigid on `Head`, `DialSpin` and `LeftHand`.
-- **Floor cords:** follow his feet.
 
 `renders/rom_sheet.png` shows him lunging, reaching, crouching, cocking his head (with the dial
 turned) and curling his claw.

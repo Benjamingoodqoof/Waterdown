@@ -6,8 +6,8 @@ Rigged for Roblox. Saves a .blend.
 
 The cords are laid like muscle: ribs hooping round a barrel chest, cords fanning out of the
 dial over the shoulders and down the arms, a narrow twisted waist, bundles that swell into
-biceps, forearms, thighs and calves, bound at the joints, splaying into claws and spilling
-across the floor round his feet.
+biceps, forearms, thighs and calves, bound at the joints, ending in claw hands and feet made
+of cord.
 
 Usage: python3 receiver_build.py OUT.blend
 """
@@ -577,36 +577,45 @@ def build_legs():
             cord(mesh_name, ctl, None, r=0.017, weights={"LowerTorso": 0.6, f"{side}UpperLeg": 0.4}, ends=("tuck", "plug"))
 
 
+FOOT_R = 0.02  # the cords a foot is made of
+
+
 def build_feet():
+    """Feet made of cord: a sole along the floor, cords wrapped round the heel, an instep running
+    down from the ankle, and toes that are just the rounded ends of the cords."""
     for side, sx in SIDES:
         an, toe = J[f"ankle_{side}"], J[f"toe_{side}"]
         fwd = (V(toe.x - an.x, toe.y - an.y, 0)).normalized()
-        out = V(sx, 0, 0)
-        foot = {f"{side}Foot": 1.0}
-        # toes: thick splayed cords that run forward onto the floor and end in claws
-        for k, ang in enumerate((-30, -10, 10, 30)):
-            dirn = (fwd * math.cos(math.radians(ang)) + out * math.sin(math.radians(ang))).normalized()
-            reach = 0.32 - 0.04 * abs(k - 1.5)
-            ctl = [an + V(0, 0, 0.04), an + dirn * 0.03 + V(0, 0, -0.03), an + dirn * 0.12 + V(0, 0, -0.07),
-                   V(*(an + dirn * 0.22)[:2], 0.026), V(*(an + dirn * reach)[:2], 0.022)]
-            cord(f"{side}Foot", ctl, None, r=0.024, weights=foot, ends=("tuck", "claw"))
-        # the heel, and cords spilling out behind and beside him in loose loops
-        back = (-fwd + out * 0.4).normalized()
-        ctl = [an + V(0, 0, 0.03), an + back * 0.07 + V(0, 0, -0.08), V(*(an + back * 0.16)[:2], CORD_R)]
-        c = an + back * 0.36
-        for k in range(10):
-            a = math.radians(-60 * sx + 40 * k * sx)
-            rr = 0.16 + 0.03 * math.sin(k * 1.7)
-            ctl.append(V(c.x + math.cos(a) * rr, c.y + math.sin(a) * rr * 0.8, CORD_R))
-        cord(f"{side}Foot", ctl, None, weights=foot, ends=("tuck", "plug" if sx > 0 else "fray"))
-        side_dir = (out + fwd * 0.3).normalized()
-        ctl = [an + V(0, 0, 0.04), an + side_dir * 0.08 + V(0, 0, -0.07), V(*(an + side_dir * 0.18)[:2], CORD_R)]
-        c = an + side_dir * 0.34 + fwd * 0.05
-        for k in range(7):
-            a = math.radians(180 + 50 * k) if sx > 0 else math.radians(-50 * k)
-            rr = 0.13 + 0.025 * math.sin(k * 2.3)
-            ctl.append(V(c.x + math.cos(a) * rr * sx, c.y + math.sin(a) * rr * 0.85, CORD_R))
-        cord(f"{side}Foot", ctl, None, variant=1 if sx < 0 else 0, weights=foot, ends=("tuck", "cap"))
+        lat = V(0, 0, 1).cross(fwd).normalized()
+        if lat.x * sx < 0:
+            lat = -lat  # toward the outside of the foot
+        bones = chain(side, "LowerLeg", "Foot")
+        base = V(an.x, an.y, 0)
+
+        def at(f, s, z):
+            """f metres forward of the ankle, s across (out positive), z up."""
+            return base + fwd * f + lat * s + V(0, 0, z)
+
+        # the sole: three cords on the floor, heel to toes, the outer edge curving like a foot
+        for s_heel, s_ball, s_toe, reach in ((-0.022, -0.042, -0.04, 0.3), (0.0, -0.002, 0.0, 0.315),
+                                             (0.022, 0.04, 0.036, 0.28)):
+            ctl = [at(-0.04, s_heel * 0.5, 0.05), at(-0.07, s_heel, FOOT_R + 0.004), at(0.0, s_heel * 1.1, FOOT_R),
+                   at(0.11, (s_heel + s_ball) / 2 * 1.1, FOOT_R), at(0.21, s_ball, FOOT_R), at(reach, s_toe, FOOT_R)]
+            cord(f"{side}Foot", ctl, bones, r=FOOT_R, ends=("tuck", "cap"))
+        # the instep: three cords down the front of the ankle, over the top of the foot to the toes
+        for k, s in enumerate((-0.028, 0.0, 0.028)):
+            reach = 0.28 - 0.015 * abs(k - 1)
+            ctl = [an + V(0, 0, 0.05) + lat * (s * 0.4), at(0.035, s * 0.5, 0.1), at(0.11, s * 0.85, 0.07),
+                   at(0.2, s * 1.05, FOOT_R * 2 + 0.006), at(reach, s * 1.05, FOOT_R * 2 - 0.002)]
+            cord(f"{side}Foot", ctl, bones, r=FOOT_R, ends=("tuck", "cap"))
+        # the heel: two cords from the back of the ankle round the heel and under it
+        for s in (-0.016, 0.016):
+            ctl = [an + V(0, 0, 0.04) - fwd * 0.03 + lat * s, at(-0.075, s, 0.07), at(-0.095, s * 1.2, 0.035),
+                   at(-0.07, s * 1.3, FOOT_R * 2 + 0.002), at(0.0, s, FOOT_R * 2), at(0.07, s * 0.6, 0.05)]
+            cord(f"{side}Foot", ctl, bones, r=FOOT_R, ends=("tuck", "tuck"))
+        # a thick core inside, so nothing shows through the gaps
+        cord(f"{side}Foot", [an + V(0, 0, 0.03), at(0.04, 0.0, 0.055), at(0.17, 0.0, 0.04)], bones, r=0.034,
+             ends=("tuck", "cap"))
 
 
 # ================================================================ the phone head
