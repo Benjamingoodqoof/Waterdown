@@ -36,45 +36,34 @@ def lines_layer(w, h, segments, width=1):
 
 # ---------------------------------------------------------------- materials
 def paint_skin(rng, w, h):
-    """Satin orange fiberglass: mold seams down the sides, scuffs, grime and a few chips."""
-    col = np.ones((h, w, 3), np.float32) * rgb((236, 132, 66))
-    col *= (0.95 + 0.08 * fbm(rng, h, w, base=3))[..., None]
-    height = 0.05 * fbm(rng, h, w, base=30, octaves=2)
-    rough = np.full((h, w), 0.32, np.float32)
-    seams = lines_layer(w, h, [[(x, 0), (x, h)] for x in (1, w // 2, w - 2)], 2)
-    seams = blur(seams, 1.2)
-    col *= (1 - 0.35 * seams)[..., None]
-    height += 0.8 * seams
+    """Glossy orange fiberglass, like a shop mannequin: smooth, with faint scuffs and a few chips."""
+    col = np.ones((h, w, 3), np.float32) * rgb((238, 128, 58))
+    col *= (0.96 + 0.06 * fbm(rng, h, w, base=3))[..., None]
+    height = 0.02 * fbm(rng, h, w, base=30, octaves=2)
+    rough = 0.22 + 0.05 * fbm(rng, h, w, base=8)
     sc = Image.new("L", (w, h), 0)
     d = ImageDraw.Draw(sc)
-    for _ in range(320):
-        x, y, a, L = rng.uniform(0, w), rng.uniform(0, h), rng.uniform(0, math.pi), rng.uniform(4, 26)
-        d.line([(x, y), (x + math.cos(a) * L, y + math.sin(a) * L)], fill=int(rng.uniform(60, 200)), width=1)
+    for _ in range(90):
+        x, y, a, L = rng.uniform(0, w), rng.uniform(0, h), rng.uniform(0, math.pi), rng.uniform(4, 18)
+        d.line([(x, y), (x + math.cos(a) * L, y + math.sin(a) * L)], fill=int(rng.uniform(40, 140)), width=1)
     scr = blur(np.asarray(sc, np.float32) / 255, 0.6)
-    col = col + (rgb((250, 210, 170)) - col) * (0.4 * scr)[..., None]
-    rough += 0.25 * scr
-    height -= 0.4 * scr
-    grime = smoothstep(0.55, 0.85, fbm(rng, h, w, base=5))
-    col *= (1 - 0.22 * grime)[..., None] * rgb((255, 238, 220))
-    rough += 0.2 * grime
-    chips = (fbm(rng, h, w, base=26, octaves=3) > 0.965).astype(np.float32)
-    chips = blur(chips, 0.8)
+    col = col + (rgb((250, 205, 165)) - col) * (0.25 * scr)[..., None]
+    rough += 0.15 * scr
+    height -= 0.2 * scr
+    grime = smoothstep(0.6, 0.9, fbm(rng, h, w, base=5))
+    col *= (1 - 0.1 * grime)[..., None]
+    rough += 0.12 * grime
+    chips = blur((fbm(rng, h, w, base=26, octaves=3) > 0.985).astype(np.float32), 0.8)
     col = col * (1 - chips[..., None]) + rgb((236, 226, 206)) * chips[..., None]
-    col *= (1 - 0.5 * np.clip(blur(chips, 2) - chips, 0, 1) * 3)[..., None]
-    height -= 0.6 * chips
+    height -= 0.4 * chips
     return col, np.clip(rough, 0.05, 1), height
 
 
-def paint_plastic(rng, w, h, color, rough_v=0.28, sole=False):
+def paint_plastic(rng, w, h, color, rough_v=0.28):
     col = np.ones((h, w, 3), np.float32) * rgb(color)
     col *= (0.92 + 0.12 * fbm(rng, h, w, base=4))[..., None]
     rough = np.full((h, w), rough_v, np.float32) + 0.1 * fbm(rng, h, w, base=10)
     height = 0.1 * fbm(rng, h, w, base=20, octaves=2)
-    if sole:  # the bottom eighth is a dark rubber sole
-        yy = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
-        s = smoothstep(0.86, 0.9, yy)
-        col = col * (1 - s[..., None]) + rgb((40, 24, 16)) * s[..., None]
-        rough = rough * (1 - s) + 0.8 * s
     wear = smoothstep(0.6, 0.9, fbm(rng, h, w, base=6))
     col *= (1 - 0.18 * wear)[..., None]
     return col, np.clip(rough, 0.05, 1), height
@@ -138,25 +127,32 @@ def paint_fabric(rng, w, h, color, dust_top=0.0, seams_u=(), hem=False, placket=
     return np.clip(col, 0, 1), np.clip(rough, 0.05, 1), height
 
 
-def paint_hair(rng, w, h, scalp=False):
-    """Synthetic wig strands running down the texture (v), darker roots, frizzy dry tips."""
-    strands = fbm(rng, h, w, base=96, octaves=2, stretch=(0.02, 1.0))
-    clumps = fbm(rng, h, w, base=10, octaves=2, stretch=(0.08, 1.0))
+HAIR = (62, 34, 20)
+HAIR_LIGHT = (150, 92, 52)
+
+
+def paint_hair(rng, w, h, columns=1, part=None, shade=1.0):
+    """Dark brown hair strands running down the texture (v), roots at the top. With columns, each
+    column is one lock: darker toward its edges, where it tucks under its neighbours, with a soft
+    sheen down the middle. part: u of a center part, where the orange scalp shows."""
+    strands = fbm(rng, h, w, base=128, octaves=2, stretch=(0.015, 1.0))
+    clumps = fbm(rng, h, w, base=16, octaves=2, stretch=(0.06, 1.0))
     v = np.linspace(1, 0, h, dtype=np.float32)[:, None] * np.ones((1, w), np.float32)  # 1 at the roots
-    base = rgb((96, 42, 20))
-    col = base * (0.62 + 0.55 * strands + 0.25 * clumps)[..., None]
-    sheen = np.exp(-((v - 0.72) / 0.08) ** 2) * (0.6 + 0.4 * strands)
-    col = col + (rgb((200, 120, 70)) - col) * (0.28 * sheen)[..., None]
-    col *= (0.82 + 0.18 * (1 - v))[..., None] if not scalp else 1.0
-    height = 0.8 * strands + 0.4 * clumps
-    rough = 0.45 - 0.15 * sheen + 0.1 * strands
-    if scalp:  # the center part shows the orange head underneath
-        x = int(0.75 * w)
-        part = np.zeros((h, w), np.float32)
-        part[: int(h * 0.55), x - 2:x + 3] = 1.0
-        part = blur(part, 1.5)
-        col = col * (1 - part[..., None]) + rgb((210, 110, 55)) * part[..., None]
-        height -= part
+    x = (np.arange(w, dtype=np.float32)[None, :] * columns / w) % 1.0 * np.ones((h, 1), np.float32)
+    across = np.cos((x - 0.5) * math.pi) ** 0.6 if columns > 1 else np.ones_like(x)  # 1 mid-lock, 0 at the edges
+    col = rgb(HAIR) * (0.7 + 0.45 * strands + 0.2 * clumps)[..., None]
+    sheen = across * np.exp(-((v - 0.68) / 0.12) ** 2) * (0.5 + 0.5 * strands)
+    col = col + (rgb(HAIR_LIGHT) - col) * (0.45 * sheen)[..., None]
+    col *= (0.72 + 0.28 * across)[..., None] * shade
+    height = 0.9 * strands + 0.4 * clumps + 0.6 * across
+    rough = 0.42 - 0.14 * sheen + 0.08 * strands
+    if part is not None:  # the center part shows the orange head underneath
+        line = np.zeros((h, w), np.float32)
+        xp = int(part * w)
+        line[: int(h * 0.6), xp - 2:xp + 3] = 1.0
+        line = blur(line, 1.5)
+        col = col * (1 - line[..., None]) + rgb((210, 110, 55)) * line[..., None]
+        height -= line
     return np.clip(col, 0, 1), np.clip(rough, 0.05, 1), height
 
 
@@ -247,8 +243,8 @@ def build(out):
     height = np.zeros((A, A), np.float32)
     painters = {
         "skin": lambda w, h: paint_skin(rng, w, h),
-        "joint": lambda w, h: paint_plastic(rng, w, h, (150, 66, 26), 0.25),
-        "shoe": lambda w, h: paint_plastic(rng, w, h, (160, 58, 22), 0.22, sole=True),
+        "sole": lambda w, h: paint_plastic(rng, w, h, (34, 21, 14), 0.7),
+        "shoe": lambda w, h: paint_plastic(rng, w, h, (74, 40, 24), 0.36),
         "metal": lambda w, h: paint_plastic(rng, w, h, (142, 140, 136), 0.35),
         "button": lambda w, h: paint_plastic(rng, w, h, (240, 228, 206), 0.3),
         "belt": lambda w, h: paint_fabric(rng, w, h, (246, 212, 176), stripe=(0.12, 0.88)),
@@ -258,8 +254,9 @@ def build(out):
         "collar": lambda w, h: paint_fabric(rng, w, h, (244, 238, 226), stripe=(0.08, 0.92)),
         "apron": lambda w, h: paint_fabric(rng, w, h, (246, 212, 176), hem=True),
         "pocket": lambda w, h: paint_pocket(rng, w, h),
-        "hair": lambda w, h: paint_hair(rng, w, h),
-        "scalp": lambda w, h: paint_hair(rng, w, h, scalp=True),
+        "hair": lambda w, h: paint_hair(rng, w, h, columns=4),
+        "hair_under": lambda w, h: paint_hair(rng, w, h, shade=0.55),
+        "scalp": lambda w, h: paint_hair(rng, w, h, part=0.75),
         "badge": lambda w, h: paint_badge(rng, w, h),
         "lining": lambda w, h: paint_plastic(rng, w, h, (92, 38, 16), 0.9),
     }

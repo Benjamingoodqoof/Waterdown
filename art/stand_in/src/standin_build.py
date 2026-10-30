@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Builds the Stand-in, the floor-2 monster: a 8.3 ft faceless shop mannequin in a faded
-Orange Court uniform, as 15 Roblox R15 body parts plus a swappable badge photo, with an
-R15 rig. Saves a .blend.
+"""Builds the Stand-in, the floor-2 monster: an 8.3 ft faceless shop mannequin in a faded
+Orange Court uniform, as 15 Roblox R15 body parts plus her hair and a swappable badge photo,
+with an R15 rig. Saves a .blend.
 
 Usage: python3 standin_build.py OUT.blend
 """
@@ -169,25 +169,26 @@ def rigid(bone):
     return {bone: 1.0}
 
 
-# ================================================================ head, neck and wig
-HEAD_R = (0.092, 0.104, 0.132)
+# ================================================================ head, neck and hair
+HEAD_R = (0.097, 0.11, 0.14)
+WIG_R = (HEAD_R[0] + 0.01, HEAD_R[1] + 0.01, HEAD_R[2] + 0.011)
 
 
 def head_shape(p, d):
-    """Egg head with only a ghost of a face: brow, nose ridge, shallow sockets, a hint of lips."""
+    """A smooth egg that narrows to a soft jaw and chin. No face at all."""
     z = p.z
-    taper = 1 - 0.24 * smooth(-0.03, -0.13, z)
-    p = V(p.x * taper, p.y * taper - 0.01 * smooth(-0.05, -0.13, z) * (d.y < 0), z)
-    if d.y < -0.2:
-        f = smooth(-0.2, -0.7, d.y)
-        x = p.x
-        bump = (0.013 * g(x / 0.011) * g((z + 0.012) / 0.028)
-                + 0.004 * g((z - 0.032) / 0.012) * smooth(0.075, 0.04, abs(x))
-                - 0.006 * g((abs(x) - 0.032) / 0.016) * g((z - 0.014) / 0.016)
-                + 0.003 * g(x / 0.022) * g((z + 0.058) / 0.008)
-                + 0.004 * g(x / 0.02) * g((z + 0.10) / 0.015))
-        p = p + V(0, -1, 0) * (bump * f)
-    return p
+    taper = 1 - 0.22 * smooth(-0.03, -0.14, z)
+    chin = 0.012 * smooth(-0.05, -0.14, z) * smooth(0.2, -0.6, d.y)
+    return V(p.x * taper, p.y * taper - chin, z)
+
+
+def polar(phi, lam):
+    return V(math.cos(lam) * math.cos(phi), math.cos(lam) * math.sin(phi), math.sin(lam))
+
+
+def scalp(d, extra=0.0):
+    """Point on the wig cap, a shell just over the head, in direction d from the head center."""
+    return J["head_c"] + V(d.x * (WIG_R[0] + extra), d.y * (WIG_R[1] + extra), d.z * (WIG_R[2] + extra))
 
 
 def hairline(phi):
@@ -195,19 +196,6 @@ def hairline(phi):
     front = max(0.0, -math.sin(phi))
     back = max(0.0, math.sin(phi))
     return math.radians(-5 + 43 * front ** 1.2 - 25 * back)
-
-
-WIG_TILT = Matrix.Rotation(math.radians(4.0), 3, "Y")
-WIG_OFF = V(0.005, 0.0, 0.002)
-WIG_R = (HEAD_R[0] + 0.011, HEAD_R[1] + 0.011, HEAD_R[2] + 0.012)
-
-
-def wig_point(phi, lam, extra=0.0):
-    d = V(math.cos(lam) * math.cos(phi), math.cos(lam) * math.sin(phi), math.sin(lam))
-    side = 0.006 * (1 - abs(math.sin(lam)))  # a little volume at the sides
-    part = -0.003 * g((phi % TAU - 1.5 * math.pi) / 0.05) * smooth(0.6, 1.2, lam)
-    p = V(d.x * (WIG_R[0] + side + extra), d.y * (WIG_R[1] + side + extra), d.z * (WIG_R[2] + extra)) + d * part
-    return J["head_c"] + WIG_OFF + WIG_TILT @ p
 
 
 def hair_weights(p):
@@ -240,22 +228,22 @@ def bodice_point(th, z, off=0.0):
 def collide(p):
     for _ in range(3):
         # head (with the wig on it)
-        q = p - (J["head_c"] + WIG_OFF)
+        q = p - J["head_c"]
         r = (WIG_R[0] + 0.012, WIG_R[1] + 0.012, WIG_R[2] + 0.012)
         k = (q.x / r[0]) ** 2 + (q.y / r[1]) ** 2 + (q.z / r[2]) ** 2
         if k < 1:
-            p = J["head_c"] + WIG_OFF + q / math.sqrt(k)
+            p = J["head_c"] + q / math.sqrt(k)
         # neck
         if 2.1 < p.z < 2.32:
             h = V(p.x, p.y, 0)
-            if h.length < 0.06:
-                p = V(*(h.normalized() * 0.06)[:2], p.z) if h.length > 1e-6 else V(0, 0.06, p.z)
+            if h.length < 0.066:
+                p = V(*(h.normalized() * 0.066)[:2], p.z) if h.length > 1e-6 else V(0, 0.066, p.z)
         # shoulders, puffed by the sleeves
         for side, sx in S.SIDES:
             c = J[f"shoulder_{side}"] + V(0, 0, 0.02)
             q = p - c
-            if q.length < 0.085:
-                p = c + q.normalized() * 0.085
+            if q.length < 0.095:
+                p = c + q.normalized() * 0.095
         # the bodice, with the collar on it
         if 1.6 < p.z < 2.19:
             cy, rx, ry = table(BODICE, min(p.z, 2.165))
@@ -268,60 +256,116 @@ def collide(p):
     return p
 
 
+def drape(p, z_end, d=None, step=0.01):
+    """Lets a strand fall from p to z_end, sliding over the head, neck, shoulders and back."""
+    if d is None:
+        nrm = (p - J["head_c"]).normalized()
+        d = (V(0, 0, -1) - nrm * nrm.dot(V(0, 0, -1))).normalized()
+    pts = [p]
+    while p.z > z_end and len(pts) < 400:
+        d = (d * 0.75 + V(0, 0, -1) * 0.25).normalized()
+        q = collide(p + d * step)
+        d = (q - p).normalized()
+        p = q
+        pts.append(p)
+    return pts
+
+
+def resample(pts, n):
+    """n + 1 points evenly spaced along a polyline."""
+    acc = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        acc.append(acc[-1] + (b - a).length)
+    out = []
+    for k in range(n + 1):
+        s = acc[-1] * k / n
+        j = next((m for m in range(1, len(acc)) if acc[m] >= s), len(acc) - 1)
+        f = (s - acc[j - 1]) / max(1e-9, acc[j] - acc[j - 1])
+        out.append(pts[j - 1].lerp(pts[j], f))
+    return out
+
+
 def build_head():
     mb = MB("Head")
     hw = rigid("Head")
-    ellipsoid(mb, J["head_c"], HEAD_R, "skin", hw, 40, 26, disp=head_shape)
-    # short seamed neck with a metal connector at the back
-    neck_p0, neck_p1 = V(0, 0.005, 2.14), V(0, 0.004, 2.31)
-    loft(mb, neck_p0, neck_p1, lambda t, th: 0.041 - 0.003 * g((t - 0.42) / 0.05), "skin", hw, 20, 10,
-         cap0=False, cap1=False)
-    loft(mb, V(0, 0.038, 2.215), V(0, 0.054, 2.215), lambda t, th: 0.011, "metal", hw, 10, 1)
-    # the wig cap: sits a little crooked, so the scalp seam shows on one side
+    ellipsoid(mb, J["head_c"], HEAD_R, "skin", hw, 36, 24, disp=head_shape)
+    # short seamed neck, with the metal connector at the back
+    loft(mb, V(0, 0.005, 2.14), V(0, 0.004, 2.29), lambda t, th: 0.054 - 0.0025 * g((t - 0.33) / 0.04), "skin", hw,
+         20, 16, cap0=False, cap1=False)
+    loft(mb, V(0, 0.05, 2.19), V(0, 0.066, 2.19), lambda t, th: 0.011, "metal", hw, 10, 1)
+    return mb
+
+
+LOCKS = 12  # per side, in the top layer; the layer under it has one fewer, filling the gaps
+LOCK_GAP = math.radians((177 - 62) / (LOCKS - 1))
+LOCK_SIDES = 6
+
+
+def build_lock(mb, pts, layer, col):
+    """One clump of hair along pts: a flattened ribbon, curved to hug what it lies on, narrow at
+    the part, tapering to a point at the tip."""
+    n, m = len(pts) - 1, LOCK_SIDES
+    rows, centers, prev_b = [], [], None
+    for k, p in enumerate(pts):
+        t = k / n
+        T = (pts[min(k + 1, n)] - pts[max(k - 1, 0)]).normalized()
+        flat = V(p.x, p.y, 0)
+        reach = min(0.03, max(0.013, flat.length * LOCK_GAP))  # wide enough to overlap its neighbours
+        flat = flat.normalized() if flat.length > 1e-6 else V(0, 1, 0)
+        N = flat.lerp((p - J["head_c"]).normalized(), smooth(2.18, 2.3, p.z))
+        N = (N - T * N.dot(T)).normalized()
+        B = T.cross(N).normalized()
+        if prev_b is not None and B.dot(prev_b) < 0:
+            B = -B
+        prev_b = B
+        hw = reach * (0.4 + 0.6 * smooth(0.0, 0.2, t)) * (1 - 0.9 * smooth(0.55, 1.0, t) ** 1.4)
+        ht = 0.0075 * (1 - 0.6 * smooth(0.6, 1.0, t))
+        c = p + N * (ht + layer)
+        ring = []
+        for j in range(m):
+            psi = TAU * j / m
+            x, y = math.cos(psi), math.sin(psi)
+            q = c + B * (x * hw) + N * (y * ht - 0.25 * hw * x * x)
+            ring.append((mb.vert(q, hair_weights), in_region("hair", (col + 0.08 + 0.42 * (x + 1)) / 4, 1 - t)))
+        rows.append(ring)
+        centers.append(c)
+    for k in range(n):
+        for j in range(m):
+            q = [rows[k][j], rows[k][(j + 1) % m], rows[k + 1][(j + 1) % m], rows[k + 1][j]]
+            ctr = sum((mb.co[x] for x, _ in q), Vector()) / 4
+            mb.face(q, ctr - (centers[k] + centers[k + 1]) / 2)
+    T0, T1 = (pts[1] - pts[0]).normalized(), (pts[-1] - pts[-2]).normalized()
+    fan(mb, rows[0], centers[0] - T0 * 0.004, in_region("hair", (col + 0.5) / 4, 1.0), hair_weights, -T0)
+    fan(mb, rows[-1], centers[-1] + T1 * 0.006, in_region("hair", (col + 0.5) / 4, 0.0), hair_weights, T1)
+
+
+def build_hair():
+    """A neat wig: a cap with a center part, locks that start at the part and fall in front of
+    the shoulders and down the back, over a dark under-layer that hides any gaps between them."""
+    mb = MB("Hair")
+    hw = rigid("Head")
+
     def cap(u, v):
         phi = TAU * u
         lam = math.pi / 2 - v * (math.pi / 2 - hairline(phi))
-        return wig_point(phi, lam), in_region("scalp", u, 1 - v)
-    grid(mb, 48, 16, cap, hw, lambda q: q - J["head_c"], wrap=True)
+        return scalp(polar(phi, lam)), in_region("scalp", u, 1 - v)
 
-    # long hair: columns start at the hairline and fall, draping over the shoulders
-    a0, a1 = math.radians(-30), math.radians(210)  # the face stays clear: hair starts 60 degrees off the front
-    ncol, nrow = 30, 20
-    paths = []
+    grid(mb, 36, 10, cap, hw, lambda q: q - J["head_c"], wrap=True)
+
+    # the under-layer, behind the shoulders: two-sided, so it also reads from the front
+    ncol, nrow = 22, 12
+    a0, a1 = math.radians(10), math.radians(170)
+    outer, inner = {}, {}
     for i in range(ncol + 1):
         phi = lerp(a0, a1, i / ncol)
-        p = wig_point(phi, hairline(phi), 0.004)
-        front = max(0.0, -math.sin(phi))
-        z_end = 1.86 + 0.06 * front + 0.025 * math.sin(5 * phi + 1.3)
-        nrm = (p - J["head_c"]).normalized()
-        d = (V(0, 0, -1) - nrm * nrm.dot(V(0, 0, -1))).normalized()
-        pts = [p]
-        while p.z > z_end and len(pts) < 200:
-            d = (d * 0.75 + V(0, 0, -1) * 0.25).normalized()
-            q = collide(p + d * 0.015)
-            d = (q - p).normalized()
-            p = q
-            pts.append(p)
-        # resample to nrow+1 points by arc length
-        acc = [0.0]
-        for a, b in zip(pts, pts[1:]):
-            acc.append(acc[-1] + (b - a).length)
-        res = []
-        for k in range(nrow + 1):
-            s = acc[-1] * k / nrow
-            j = next((m for m in range(1, len(acc)) if acc[m] >= s), len(acc) - 1)
-            f = (s - acc[j - 1]) / max(1e-9, acc[j] - acc[j - 1])
-            res.append(pts[j - 1].lerp(pts[j], f))
-        paths.append(res)
-
-    outer, inner = {}, {}
-    for i, col in enumerate(paths):
-        for k, p in enumerate(col):
+        start = scalp(polar(phi, hairline(phi)), 0.002)
+        z_end = lerp(1.84, 1.92, abs(math.cos(phi)))
+        for k, p in enumerate(resample(drape(start, z_end), nrow)):
             h = V(p.x, p.y, 0)
-            radial = (p - J["head_c"]).normalized() if p.z > 2.25 else (h.normalized() if h.length > 1e-6 else V(0, 1, 0))
-            uv = in_region("hair", i / ncol, 1 - k / nrow)
+            radial = (p - J["head_c"]).normalized() if p.z > 2.25 else h.normalized()
+            uv = in_region("hair_under", i / ncol, 1 - k / nrow)
             outer[i, k] = (mb.vert(p, hair_weights), uv)
-            inner[i, k] = (mb.vert(p - radial * 0.012, hair_weights), uv)
+            inner[i, k] = (mb.vert(p - radial * 0.006, hair_weights), uv)
 
     def axis_out(c):
         return (c - J["head_c"]) if c.z > 2.25 else V(c.x, c.y, 0)
@@ -332,14 +376,25 @@ def build_head():
                 q = [side[i, k], side[i + 1, k], side[i + 1, k + 1], side[i, k + 1]]
                 ctr = sum((mb.co[x] for x, _ in q), Vector()) / 4
                 mb.face(q, axis_out(ctr) * sign)
-    for i in range(ncol):  # the cut ends
-        q = [outer[i, nrow], outer[i + 1, nrow], inner[i + 1, nrow], inner[i, nrow]]
-        mb.face(q, V(0, 0, -1))
-    for i, tang in ((0, -1), (ncol, 1)):  # the two edges framing the face
-        for k in range(nrow):
-            q = [outer[i, k], outer[i, k + 1], inner[i, k + 1], inner[i, k]]
-            ctr = sum((mb.co[x] for x, _ in q), Vector()) / 4
-            mb.face(q, V(-ctr.y, ctr.x, 0) * tang)
+    for i in range(ncol):
+        mb.face([outer[i, nrow], outer[i + 1, nrow], inner[i + 1, nrow], inner[i, nrow]], V(0, 0, -1))
+
+    # the locks: each starts on the part (front ones at the forehead, back ones at the crown),
+    # runs over the cap to the side of the head and falls from there. Two layers: the lower one
+    # sits between the locks of the top one.
+    for layer, count in ((0, LOCKS - 1), (1, LOCKS)):
+        for sgn in (1, -1):
+            for i in range(count):
+                f = (i + 0.5 * (layer == 0)) / (LOCKS - 1)
+                fall = math.radians(62 + 115 * f ** 1.2)  # where it leaves the head, from the front
+                alpha = math.radians(lerp(50, 128, f))  # where it starts on the part, from the forehead
+                root = V(sgn * 0.02, -math.cos(alpha), math.sin(alpha)).normalized()
+                leave = V(sgn * math.sin(fall), -math.cos(fall), -0.12).normalized()
+                pts = [scalp(root.lerp(leave, smooth(0, 1, k / 12)).normalized(), lerp(0.002, 0.014, k / 12))
+                       for k in range(13)]
+                z_end = lerp(1.93, 1.79, smooth(0.2, 1.0, f)) + rng.uniform(-0.015, 0.015) + 0.02 * (layer == 0)
+                pts += drape(pts[-1], z_end, (pts[-1] - pts[-2]).normalized())[1:]
+                build_lock(mb, resample(pts, 12), 0.0035 * layer + 0.001 * (i % 2), (i + 2 * layer + (sgn > 0)) % 4)
     return mb
 
 
@@ -486,125 +541,303 @@ def build_lower_torso():
 
 
 # ================================================================ limbs
-def limb_radius(r0, r1, bulge=0.0, back_bulge=0.0, round_ends=True):
-    def r(t, th):
-        base = lerp(r0, r1, t) + bulge * math.sin(math.pi * t)
-        base += back_bulge * g((t - 0.3) / 0.2) * max(0.0, math.sin(th))  # calf at the back (+Y side)
-        if round_ends:
-            e = min(t, 1 - t)
-            base *= math.sqrt(max(0.0, 1 - max(0.0, 0.08 - e) ** 2 / 0.0064)) if e < 0.08 else 1.0
-        return base
-    return r
+# radii by distance (m) along the limb from its top joint: outward, inward, front, back
+UPPER_ARM = [
+    (0.00, 0.060, 0.055, 0.060, 0.060), (0.10, 0.061, 0.055, 0.059, 0.062), (0.21, 0.055, 0.052, 0.055, 0.056),
+    (0.32, 0.053, 0.049, 0.055, 0.053), (0.42, 0.048, 0.046, 0.049, 0.048), (0.50, 0.044, 0.043, 0.042, 0.048),
+]
+FOREARM = [  # from the elbow; the wrist is wider front to back, the way the palm faces
+    (0.00, 0.044, 0.043, 0.042, 0.048), (0.07, 0.048, 0.047, 0.046, 0.048), (0.15, 0.044, 0.043, 0.042, 0.042),
+    (0.26, 0.036, 0.035, 0.037, 0.035), (0.33, 0.029, 0.028, 0.035, 0.034), (0.36, 0.027, 0.027, 0.034, 0.033),
+]
+THIGH = [
+    (0.00, 0.080, 0.090, 0.100, 0.105), (0.15, 0.092, 0.098, 0.102, 0.104), (0.33, 0.095, 0.087, 0.094, 0.090),
+    (0.50, 0.082, 0.076, 0.082, 0.074), (0.60, 0.070, 0.067, 0.074, 0.064), (0.665, 0.062, 0.060, 0.070, 0.058),
+]
+SHIN = [  # from the knee; the calf swells at the back and inside
+    (0.00, 0.062, 0.060, 0.070, 0.058), (0.06, 0.060, 0.059, 0.060, 0.064), (0.17, 0.070, 0.077, 0.058, 0.084),
+    (0.30, 0.063, 0.068, 0.052, 0.074), (0.44, 0.047, 0.049, 0.044, 0.050), (0.55, 0.038, 0.038, 0.038, 0.040),
+    (0.62, 0.036, 0.036, 0.036, 0.040),
+]
+
+
+def seam(d, at, depth=0.0016, width=0.0022):
+    """A fine line cut around a limb, where the shop would take the part off."""
+    return depth * g((d - at) / width)
+
+
+def stations(d0, d1, step, dense=(), seams=()):
+    """Where a limb's rings go: every step, twice as often within 2 steps of the dense points
+    (bending joints), and bunched tightly around seam lines."""
+    n = max(1, round((d1 - d0) / step))
+    ds = [d0 + (d1 - d0) * k / n for k in range(n + 1)]
+    for c in dense:
+        ds += [c + step / 2 * k for k in range(-4, 5)]
+    for c in seams:
+        ds += [c + o for o in (-0.007, -0.0035, 0.0, 0.0035, 0.007)]
+    ds = sorted(d for d in ds if d0 <= d <= d1)
+    out = [ds[0]]
+    for d in ds[1:]:
+        if d - out[-1] > 0.0015:
+            out.append(d)
+    return out
+
+
+def limb(path, ds, radii, owner, weights, sx, n_around=20):
+    """A smooth limb along the polyline path, with rings at the distances ds (negative ones go
+    back past the first point, for a rounded top). radii(d) -> (outward, inward, front, back).
+    owner(d) picks the part each stretch belongs to; the ring where it changes is built in both
+    parts, with the same blended weights(d), so the joint bends without a crack."""
+    segs = list(zip(path, path[1:]))
+    lens = [(b - a).length for a, b in segs]
+    starts = [sum(lens[:k]) for k in range(len(segs))]
+    dirs = [(b - a).normalized() for a, b in segs]
+
+    def frame_at(d):
+        k = next((k for k in range(len(segs)) if d < starts[k] + lens[k]), len(segs) - 1)
+        c = segs[k][0] + dirs[k] * (d - starts[k])
+        w = dirs[0]
+        for j in range(1, len(segs)):  # turn smoothly through the joints
+            w = w.lerp(dirs[j], smooth(starts[j] - 0.06, starts[j] + 0.06, d))
+        w = w.normalized()
+        out = (V(sx, 0, 0) - w * w.dot(V(sx, 0, 0))).normalized()
+        fwd = w.cross(out)
+        if fwd.y > 0:
+            fwd = -fwd
+        return c, w, out, fwd
+
+    def ring_points(d):
+        c, w, out, fwd = frame_at(d)
+        ro, ri, rf, rb = radii(d)
+        pts = []
+        for j in range(n_around + 1):
+            psi = TAU * j / n_around
+            cs, sn = math.cos(psi), math.sin(psi)
+            pts.append(c + out * (cs * (ro if cs > 0 else ri)) + fwd * (sn * (rf if sn > 0 else rb)))
+        return c, w, pts
+
+    rings = [ring_points(d) for d in ds]
+    span = ds[-1] - ds[0]
+    built = {}
+
+    def ring(mb, r):
+        if (mb.name, r) not in built:
+            wts = weights(ds[r])
+            built[mb.name, r] = [(mb.vert(p, wts), in_region("skin", j / n_around, (ds[r] - ds[0]) / span))
+                                 for j, p in enumerate(rings[r][2])]
+        return built[mb.name, r]
+
+    for r in range(len(ds) - 1):
+        mb = owner((ds[r] + ds[r + 1]) / 2)
+        a, b = ring(mb, r), ring(mb, r + 1)
+        axis = (rings[r][0] + rings[r + 1][0]) / 2
+        for j in range(n_around):
+            q = [a[j], a[j + 1], b[j + 1], b[j]]
+            ctr = sum((mb.co[x] for x, _ in q), Vector()) / 4
+            mb.face(q, ctr - axis)
+    for r, sign, mb in ((0, -1, owner(ds[0])), (len(ds) - 1, 1, owner(ds[-1]))):
+        c, w, _ = rings[r]
+        tip = c + w * sign * (0.002 if sign < 0 else -0.004)  # rounded top; the bottom end is tucked in
+        fan(mb, ring(mb, r), tip, in_region("skin", 0.5, 0.5), weights(ds[r]), w * sign)
 
 
 def build_arm(side, sx):
     up, lo, hd = MB(f"{side}UpperArm"), MB(f"{side}LowerArm"), MB(f"{side}Hand")
     sh, el, wr = J[f"shoulder_{side}"], J[f"elbow_{side}"], J[f"wrist_{side}"]
-    wu, wl, wh = rigid(f"{side}UpperArm"), rigid(f"{side}LowerArm"), rigid(f"{side}Hand")
-    ellipsoid(up, sh, (0.05, 0.05, 0.05), "joint", wu, 16, 10)
-    loft(up, sh, el, limb_radius(0.05, 0.039, 0.004), "skin", wu, 16, 12, 0.06, 0.9)
+    Lu, Lf = (el - sh).length, (wr - el).length
+    arm_seam = 0.205  # where the arm comes off, just below the sleeve
+    end = Lu + Lf - 0.002  # the forearm stops at the wrist seam
+    upper, lower = f"{side}UpperArm", f"{side}LowerArm"
+
+    def radii(d):
+        r = table(UPPER_ARM, d) if d < Lu else table(FOREARM, d - Lu)
+        k = math.sqrt(max(0.0, 1 - (d / 0.05) ** 2)) if d < 0 else 1.0  # rounded shoulder, inside the sleeve
+        cut = seam(d, arm_seam) + 0.001 * smooth(end - 0.004, end, d)  # and a rounded rim at the wrist
+        return tuple(x * k - cut for x in r)
+
+    def weights(d):
+        wl = smooth(-0.07, 0.07, d - Lu)
+        return {upper: 1 - wl, lower: wl}
+
+    ds = stations(-0.048, end, 0.03, dense=(Lu, -0.02), seams=(arm_seam,))
+    limb([sh, el, wr], ds, radii, lambda d: up if d < Lu else lo, weights, sx)
 
     # puffed short sleeve, gathered at the shoulder, with a cuff and a lining
-    def puff(t, th):
-        # a round dome gathered at the shoulder seam, a soft puff, then the cuff
-        if t < 0.02:
-            base = 0.058 * math.sqrt(max(0.0, 1 - ((0.02 - t) / 0.15) ** 2))
-        else:
-            base = table([(0.02, 0.058), (0.2, 0.059), (0.36, 0.056), (0.42, 0.055)], t)[0]
-        return base + 0.0025 * math.sin(9 * th) * smooth(0.42, 0.1, t) * smooth(-0.13, -0.05, t)
+    wu = rigid(upper)
 
-    loft(up, sh, el, puff, "sleeve", wu, 28, 24, -0.122, 0.42, cap0=True, cap1=False,
-         uv_v=lambda t: (t + 0.13) / 0.55, cap_lift=0.17)
-    loft(up, sh, el, lambda t, th: 0.051, "lining", wu, 28, 1, 0.36, 0.42, cap0=False, cap1=False)
-    ellipsoid(lo, el, (0.043, 0.043, 0.043), "joint", wl, 14, 8)
-    loft(lo, el, wr, limb_radius(0.039, 0.029, 0.005), "skin", wl, 14, 12, 0.1, 0.92)
-    ellipsoid(hd, wr, (0.03, 0.03, 0.03), "joint", wh, 12, 8)
-    build_hand(hd, side, sx, wr, wh)
+    def puff(t, th):
+        d = t * Lu
+        if d < 0.008:  # a round dome over the shoulder
+            base = 0.072 * math.sqrt(max(0.0, 1 - ((0.008 - d) / 0.066) ** 2))
+        else:
+            base = table([(0.008, 0.072), (0.08, 0.073), (0.142, 0.070), (0.166, 0.069)], d)[0]
+        return base + 0.0012 * math.sin(9 * th) * smooth(0.166, 0.04, d) * smooth(-0.058, -0.03, d)
+
+    loft(up, sh, el, puff, "sleeve", wu, 28, 24, -0.055 / Lu, 0.166 / Lu, cap0=True, cap1=False,
+         uv_v=lambda t: (t * Lu + 0.058) / 0.224, cap_lift=0.14)
+    loft(up, sh, el, lambda t, th: 0.064, "lining", wu, 28, 1, 0.142 / Lu, 0.166 / Lu, cap0=False, cap1=False)
+    build_hand(hd, side, sx, wr, (wr - el).normalized())
     return up, lo, hd
 
 
 HAND = [  # t, half width (across the palm), half thickness
-    (0.0, 0.022, 0.017), (0.12, 0.030, 0.017), (0.35, 0.038, 0.016), (0.52, 0.040, 0.014),
-    (0.75, 0.036, 0.011), (0.92, 0.030, 0.010), (1.0, 0.016, 0.008),
+    (0.00, 0.032, 0.0245), (0.06, 0.031, 0.022), (0.15, 0.037, 0.021), (0.28, 0.045, 0.0195), (0.45, 0.048, 0.018),
+    (0.55, 0.047, 0.0145), (0.75, 0.043, 0.012), (0.90, 0.037, 0.0105), (0.97, 0.030, 0.0085), (1.0, 0.014, 0.0045),
 ]
+FINGERS = (-0.5, 0.0, 0.5)  # where the grooves between the four fingers run, across the hand
 
 
-def build_hand(mb, side, sx, wr, wh):
-    """A mitten hand: fingers moulded together with shallow grooves, the thumb lying along it."""
-    along = V(0.004 * sx, -0.004, -1.0).normalized()
-    across = V(0, 1, 0)  # index at the front (-Y), pinky at the back
-    thick = V(sx, 0, 0)  # back of the hand faces outward, palm toward the thigh
-    L = 0.2
+def build_hand(mb, side, sx, wr, along):
+    """A shop-mannequin hand: the fingers moulded together, with fine grooves between them and
+    gently curled, and the thumb resting against the index finger. It plugs into the wrist."""
+    wh = rigid(f"{side}Hand")
+    across = (V(0, -1, 0) - along * along.dot(V(0, -1, 0))).normalized()  # toward the index finger
+    back = along.cross(across).normalized()
+    if back.x * sx < 0:
+        back = -back  # the back of the hand faces out, the palm toward the thigh
+    palm = -back
+    L = 0.215
+    # the plug that sits in the end of the forearm
+    loft(mb, wr - along * 0.018, wr + along * 0.004,
+         lambda t, th: 1 / math.sqrt((math.cos(th) / 0.025) ** 2 + (math.sin(th) / 0.0325) ** 2), "skin", wh, 16, 3,
+         cap0=False, cap1=False)
+
+    def length(s):  # s = -1 index side .. 1 little finger side
+        return 1.0 - 0.05 * (s + 0.25) ** 2 - 0.07 * max(0.0, s) ** 2 - sum(0.02 * g((s - k) / 0.06) for k in FINGERS)
 
     def pt(u, v):
         t, psi = v, TAU * u
         hw, ht = table(HAND, t)
-        s = math.cos(psi)
-        length = 1.0
-        if t > 0.55:
-            length = 1 - 0.12 * (s + 0.15) ** 2 - 0.06 * max(0.0, s)
-        dist = 0.02 + L * (0.55 + (t - 0.55) * length) if t > 0.55 else 0.02 + L * t
-        c = wr + along * dist - thick * (0.03 * smooth(0.55, 1.0, t) ** 2)
-        groove = 0.0
-        if t > 0.55:
-            groove = sum(0.0025 * g((s - k) / 0.08) for k in (-0.5, 0.0, 0.5)) * abs(math.sin(psi))
-        p = c + across * (hw * s) + thick * ((ht - groove) * math.sin(psi))
-        return p, in_region("skin", u, v)
+        s, c = math.cos(psi), math.sin(psi)
+        tt = t if t <= 0.55 else 0.55 + (t - 0.55) * length(s)
+        grooves = sum(0.003 * g((s - k) / 0.07) for k in FINGERS) * smooth(0.5, 0.6, t)
+        knuckles = 0.002 * sum(g((s - k) / 0.15) for k in (-0.75, -0.25, 0.25, 0.75)) * g((t - 0.47) / 0.04)
+        thick = (ht - grooves * abs(c)) * c + (knuckles if c > 0 else 0.0)
+        center = wr + along * (0.002 + L * tt) + palm * (0.045 * smooth(0.45, 1.0, t) ** 2)
+        return center - across * (hw * s) + back * thick, in_region("skin", u, v)
 
     def out(c):
         d = c - wr
         return d - along * d.dot(along)
 
-    rows = grid(mb, 18, 14, pt, wh, out, wrap=True)
-    tip = wr + along * (0.02 + L * 1.0) - thick * 0.03
-    fan(mb, rows[-1], tip, in_region("skin", 0.5, 1.0), wh, along)
-    fan(mb, rows[0], wr + along * 0.012, in_region("skin", 0.5, 0.0), wh, -along)
-    base = wr + along * 0.07 - across * 0.03 - thick * 0.006
-    d = (along * 0.75 - across * 0.45 - thick * 0.25).normalized()
-    loft(mb, base, base + d * 0.075, lambda t, th: lerp(0.0135, 0.0095, t), "skin", wh, 10, 6)
+    rows = grid(mb, 24, 18, pt, wh, out, wrap=True)
+    fan(mb, rows[-1], wr + along * (0.002 + L * 0.99) + palm * 0.045, in_region("skin", 0.5, 1.0), wh, along)
+    fan(mb, rows[0], wr - along * 0.004, in_region("skin", 0.5, 0.0), wh, -along)
+    # the ball of the thumb, and the thumb in two pieces lying along the index finger
+    ellipsoid(mb, wr + along * 0.06 + across * 0.018 + palm * 0.008, (0.014, 0.018, 0.03), "skin", wh, 12, 8)
+    base = wr + along * 0.05 + across * 0.026 + palm * 0.006
+    d1 = (along * 0.78 + across * 0.35 + palm * 0.35).normalized()
+    mid = base + d1 * 0.055
+    d2 = (along * 0.9 + across * 0.1 + palm * 0.35).normalized()
+    loft(mb, base, mid, lambda t, th: lerp(0.0145, 0.0125, t), "skin", wh, 12, 4, cap0=False, cap1=False)
+    ellipsoid(mb, mid, (0.0125, 0.0125, 0.0125), "skin", wh, 12, 6)
+    loft(mb, mid, mid + d2 * 0.045, lambda t, th: lerp(0.0125, 0.0095, t), "skin", wh, 12, 5, cap0=False)
 
 
-FOOT = [  # t, center height, half width, half height
-    (0.0, 0.050, 0.032, 0.045), (0.12, 0.055, 0.040, 0.050), (0.35, 0.060, 0.042, 0.055),
-    (0.62, 0.042, 0.047, 0.038), (0.85, 0.032, 0.042, 0.028), (1.0, 0.026, 0.020, 0.018),
+FOOT = [  # t (heel to toe), center height, half width, half height
+    (0.00, 0.040, 0.007, 0.020), (0.03, 0.044, 0.025, 0.036), (0.08, 0.049, 0.035, 0.045),
+    (0.18, 0.052, 0.039, 0.050), (0.33, 0.046, 0.043, 0.044), (0.52, 0.035, 0.047, 0.034),
+    (0.70, 0.028, 0.046, 0.027), (0.86, 0.022, 0.040, 0.021), (0.95, 0.018, 0.030, 0.016), (1.0, 0.014, 0.011, 0.009),
 ]
 
 
 def build_leg(side, sx):
     up, lo, ft = MB(f"{side}UpperLeg"), MB(f"{side}LowerLeg"), MB(f"{side}Foot")
     hp, kn, an = J[f"hip_{side}"], J[f"knee_{side}"], J[f"ankle_{side}"]
-    wu, wl, wf = rigid(f"{side}UpperLeg"), rigid(f"{side}LowerLeg"), rigid(f"{side}Foot")
-    ellipsoid(up, hp, (0.07, 0.07, 0.07), "joint", wu, 16, 10)
-    loft(up, hp, kn, limb_radius(0.08, 0.054, 0.007), "skin", wu, 18, 14, 0.08, 0.93)
-    ellipsoid(lo, kn, (0.056, 0.056, 0.056), "joint", wl, 16, 10)
-    loft(lo, kn, an, limb_radius(0.052, 0.034, 0.002, 0.01), "skin", wl, 16, 16, 0.09, 0.93)
-    ellipsoid(ft, an, (0.036, 0.036, 0.036), "joint", wf, 12, 8)
-    # a moulded flat shoe
-    fwd = V(0.01 * sx, -1, 0).normalized()
-    heel = V(an.x, an.y + 0.065, 0)
+    Lt, Ls = (kn - hp).length, (an - kn).length
+    end = Lt + Ls * (kn.z - 0.135) / (kn.z - an.z)  # the shin stops at the ankle seam
+    upper, lower = f"{side}UpperLeg", f"{side}LowerLeg"
 
-    def pt(u, v):
-        t, psi = v, TAU * u
+    def radii(d):
+        r = table(THIGH, d) if d < Lt else table(SHIN, d - Lt)
+        k = math.sqrt(max(0.0, 1 - (d / 0.1) ** 2)) if d < 0 else 1.0  # rounded hip, under the skirt
+        lip = 0.001 * smooth(end - 0.004, end, d)
+        return tuple(x * k - lip for x in r)
+
+    def weights(d):
+        wl = smooth(-0.075, 0.075, d - Lt)
+        return {upper: 1 - wl, lower: wl}
+
+    ds = stations(-0.096, end, 0.035, dense=(Lt, -0.04))
+    limb([hp, kn, an], ds, radii, lambda d: up if d < Lt else lo, weights, sx, 22)
+    build_foot(ft, side, sx, an)
+    return up, lo, ft
+
+
+def build_foot(ft, side, sx, an):
+    """The foot, in a Mary Jane flat: a leather shell with a strap and button, the instep bare."""
+    wf = rigid(f"{side}Foot")
+    # the plug that sits in the end of the shin
+    loft(ft, V(an.x, an.y, 0.16), V(an.x, an.y + 0.004, 0.06), lambda t, th: 0.0345 + 0.003 * max(0.0, -math.sin(th)),
+         "skin", wf, 16, 4, cap0=False, cap1=False)
+    fwd = V(0.05 * sx, -1, 0).normalized()  # toes turned out a little
+    lat = V(0, 0, 1).cross(fwd).normalized()
+    if lat.x * sx < 0:
+        lat = -lat
+    heel = V(an.x, an.y + 0.058, 0)
+    LF = 0.31
+
+    def at(t, psi, off=0.0, floor=0.006):
         cz, hw, hh = table(FOOT, t)
-        c = heel + fwd * (0.265 * t)
-        p = c + V(sx * hw * math.cos(psi), 0, cz + hh * math.sin(psi))
-        p.z = max(0.006, p.z)
-        return p, in_region("shoe", u, 1 - min(1.0, (p.z - 0.006) / 0.11))
+        p = heel + fwd * (LF * t) + lat * ((hw + off) * math.cos(psi)) + V(0, 0, cz + (hh + off) * math.sin(psi))
+        p.z = max(floor, p.z)
+        return p
 
     def out(c):
         d = c - heel
         a = d - fwd * d.dot(fwd)
-        return V(a.x, a.y, a.z - 0.045)
+        return V(a.x, a.y, a.z - 0.04)
 
-    rows = grid(ft, 20, 12, pt, wf, out, wrap=True)
-    fan(ft, rows[0], heel + V(0, 0.012, 0.05), in_region("shoe", 0.5, 0.5), wf, -fwd)
-    fan(ft, rows[-1], heel + fwd * 0.272 + V(0, 0, 0.026), in_region("shoe", 0.5, 0.5), wf, fwd)
-    # skin shows where the shoe opens over the instep
-    for k, (ids, uvs) in enumerate(zip(ft.faces, ft.fuv)):
-        ctr = sum((ft.co[i] for i in ids), Vector()) / len(ids)
-        if ctr.z > 0.088 and (ctr - heel).dot(fwd) < 0.15:
-            ft.fuv[k] = [in_region("skin", (j + 1) / 5, 0.5) for j in range(len(ids))]
-    return up, lo, ft
+    rows = grid(ft, 20, 20, lambda u, v: (at(v, TAU * u), in_region("skin", u, v)), wf, out, wrap=True)
+    fan(ft, rows[0], heel + V(0, 0, 0.04) - fwd * 0.003, in_region("skin", 0.5, 0.0), wf, -fwd)
+    fan(ft, rows[-1], heel + fwd * (LF + 0.003) + V(0, 0, 0.014), in_region("skin", 0.5, 1.0), wf, fwd)
+
+    def cut(t):
+        """Angle around the foot of the shoe's top edge (pi/2: closed over the top)."""
+        cz, hw, hh = table(FOOT, t)
+        top = lerp(0.068, 0.05, smooth(0.1, 0.3, t))
+        a = math.asin(max(-1.0, min(1.0, (top - cz) / hh)))
+        return lerp(a, math.pi / 2, smooth(0.42, 0.52, t))
+
+    nc, nr, off = 22, 22, 0.0028
+    shell = []
+    for r in range(nr + 1):
+        t, a = r / nr, cut(r / nr)
+        shell.append([(ft.vert(at(t, lerp(math.pi - a, TAU + a, i / nc), off, 0.0), wf), (i / nc, t))
+                      for i in range(nc + 1)])
+    for r in range(nr):
+        for i in range(nc):
+            q = [shell[r][i], shell[r][i + 1], shell[r + 1][i + 1], shell[r + 1][i]]
+            ctr = sum((ft.co[x] for x, _ in q), Vector()) / 4
+            region = "sole" if ctr.z < 0.011 else "shoe"
+            ft.face([(x, in_region(region, *uv)) for x, uv in q], out(ctr))
+    fan(ft, [(x, in_region("shoe", *uv)) for x, uv in shell[0]], heel + V(0, 0, 0.04) - fwd * (0.003 + off),
+        in_region("shoe", 0.5, 0.0), wf, -fwd)
+    fan(ft, [(x, in_region("shoe", *uv)) for x, uv in shell[-1]], heel + fwd * (LF + 0.003 + off) + V(0, 0, 0.014),
+        in_region("shoe", 0.5, 1.0), wf, fwd)
+    # the thickness of the leather along the top edge, where the shoe is open
+    for r in range(nr):
+        t0, t1 = r / nr, (r + 1) / nr
+        if cut(t0) > math.pi / 2 - 0.01:
+            continue
+        for psi_of in (lambda a: math.pi - a, lambda a: TAU + a):
+            p0, p1 = psi_of(cut(t0)), psi_of(cut(t1))
+            q = [at(t0, p0, off, 0.0), at(t1, p1, off, 0.0), at(t1, p1, 0.0), at(t0, p0, 0.0)]
+            items = [(ft.vert(p, wf), in_region("shoe", k / 4, 0.5)) for k, p in enumerate(q)]
+            ft.face(items, V(0, 0, 1))
+    # the strap over the instep, buttoned on the outside
+    ts, a = 0.40, cut(0.40)
+    top = [[at(ts + dt, lerp(a - 0.05, math.pi - a + 0.05, i / 12), 0.0045) for i in range(13)] for dt in (-0.02, 0.02)]
+    low = [[at(ts + dt, lerp(a - 0.05, math.pi - a + 0.05, i / 12), 0.0) for i in range(13)] for dt in (-0.02, 0.02)]
+    for i in range(12):
+        uv = [in_region("shoe", i / 12, 0.2), in_region("shoe", (i + 1) / 12, 0.2),
+              in_region("shoe", (i + 1) / 12, 0.4), in_region("shoe", i / 12, 0.4)]
+        q = [top[0][i], top[0][i + 1], top[1][i + 1], top[1][i]]
+        ft.face([(ft.vert(p, wf), u) for p, u in zip(q, uv)], out(sum(q, Vector()) / 4))
+        for k, sgn in ((0, -1), (1, 1)):
+            q = [top[k][i], top[k][i + 1], low[k][i + 1], low[k][i]]
+            ft.face([(ft.vert(p, wf), u) for p, u in zip(q, uv)], fwd * sgn)
+    ellipsoid(ft, at(ts, a + 0.12, 0.007), (0.0055, 0.0055, 0.0055), "metal", wf, 10, 6)
 
 
 # ================================================================ rig, materials
@@ -676,7 +909,7 @@ def main(out):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     atlas = make_material("M_StandIn", "standin")
     photo_mat = make_material("M_BadgePhoto", "badge_photo")
-    parts = [build_head()]
+    parts = [build_head(), build_hair()]
     ut, photo = build_upper_torso()
     parts += [ut, build_lower_torso()]
     for side, sx in S.SIDES:

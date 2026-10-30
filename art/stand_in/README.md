@@ -9,25 +9,24 @@ players and their friends, moving the way they move. Built procedurally in Blend
 
 ## Look
 
-- **Body:** satin orange fiberglass, like an old store mannequin. It has mold seams down the
-  sides of the limbs, scuffs, patches of grime and a few paint chips.
-- **Head:**
-  - A smooth egg with only a ghost of a face: a brow, a nose ridge, shallow eye sockets and a
-    hint of lips, as if the face was sanded off. It's blank from across a room, and close up
-    it nearly looks like someone.
-  - The neck is short, with a seam ring and a metal bolt where the head screws on.
-- **Hair:** a wig with a center part, sitting slightly crooked on the head. Long panels hang
-  over the shoulders and down the back, and stay off the face.
-- **Joints:** ball joints with visible gaps at the shoulders, elbows, wrists, hips, knees and
-  ankles, so she reads as jointed even standing still.
-- **Hands:** plain mitten hands with the fingers molded together (grooves only) and a separate
-  thumb.
+- **Body:** glossy orange fiberglass, like a shop display mannequin, with faint scuffs and a
+  few paint chips. The arms and legs are smooth and shaped: a full thigh, a defined knee and
+  calf and slim ankles, an upper arm and forearm narrowing to the wrist.
+- **Joints:** fine seam lines where a shop mannequin comes apart (just below the sleeves, at
+  the wrists, the ankles and the neck). The elbows and knees bend smoothly.
+- **Head:** a smooth egg with a soft jaw and no face at all. The neck is short, with a seam
+  ring and a metal bolt at the back where the head screws on.
+- **Hair:** long, dark brown, with a center part. It's sculpted as clumps that start at the
+  part, sweep down past the face, and fall in front of the shoulders and down the back, over
+  a darker under-layer so no gaps show.
+- **Hands:** shop-mannequin hands with the fingers molded together, fine grooves between them,
+  a gentle curl, and the thumb resting along the index finger. They plug into the wrists.
 - **Uniform:**
   - A faded rust Orange Court dress: a bodice with a Peter Pan collar, four buttons, puff
     sleeves and a pleated skirt.
   - A cream half apron with the Orange Court sun logo on its pocket and a bow at the back.
   - It's dusty across the shoulders, stained, and has a small tear near the hem.
-- **Shoes:** flat, molded onto the feet.
+- **Shoes:** dark brown leather Mary Jane flats with a strap and button over a bare instep.
 - **Badge ("her last copy"):**
   - A crooked "ORANGE COURT / HELLO, MY NAME IS" tag. The names Ashley, Marcus, Dev and Jen
     are written one under another, and each is crossed out: everyone she has been so far.
@@ -39,7 +38,7 @@ players and their friends, moving the way they move. Built procedurally in Blend
 
 | Path | What it is |
 |---|---|
-| `export/StandIn.fbx` | R15 character for Roblox's 3D Importer: 7.4 studs tall, origin at the pelvis, textures embedded |
+| `export/StandIn.fbx` | R15 character for Roblox's 3D Importer: 7.4 studs tall, origin at the pelvis, textures embedded. 15 body parts plus `Hair` and `BadgePhoto` |
 | `export/StandIn_Roblox.blend` | The same 7.4-stud model and rig, for adding animations and exporting them with a Roblox plugin |
 | `export/StandIn.glb` | Same model as glTF with 1024 px PBR textures |
 | `stand_in.blend` | Blender source at real-world size (2.53 m), with rig, weights and materials |
@@ -52,19 +51,20 @@ players and their friends, moving the way they move. Built procedurally in Blend
 
 | MeshPart | Triangles |
 |---|---|
-| Head (head, neck, wig and hair) | 6,596 |
+| Head (head, neck) | 2,408 |
+| Hair (cap, locks, under-layer) | 8,904 |
 | UpperTorso (bodice, collar, buttons, badge) | 3,026 |
 | LowerTorso (skirt, apron, pelvis) | 6,784 |
-| Left/RightUpperArm (shoulder ball, puff sleeve) | 2,164 each |
-| Left/RightLowerArm | 588 each |
-| Left/RightHand | 872 each |
-| Left/RightUpperLeg | 860 each |
-| Left/RightLowerLeg | 864 each |
-| Left/RightFoot | 712 each |
+| Left/RightUpperArm (arm, puff sleeve) | 2,808 each |
+| Left/RightLowerArm | 660 each |
+| Left/RightHand | 1,572 each |
+| Left/RightUpperLeg | 1,518 each |
+| Left/RightLowerLeg | 1,034 each |
+| Left/RightFoot (foot, shoe) | 2,216 each |
 | BadgePhoto | 2 |
-| **Total** | **28,528** |
+| **Total** | **40,740** |
 
-Every part uses one texture atlas, except BadgePhoto, which has its own image. The rig has
+Each mesh is under 10k triangles. Every part uses one texture atlas, except BadgePhoto, which has its own image. The rig has
 17 bones, and vertices have at most 3 bone weights.
 
 ## Importing into Roblox Studio
@@ -91,7 +91,7 @@ Every part uses one texture atlas, except BadgePhoto, which has its own image. T
    rotate her 180°.
 5. **Textures:** upload `standin_color`, `standin_normal` and `standin_roughness` from
    `textures/roblox/`. Make one `SurfaceAppearance` with ColorMap, NormalMap and RoughnessMap
-   set to them, then put a copy in each of the 15 body parts.
+   set to them, then put a copy in each of the 15 body parts and in `Hair`.
 6. **BadgePhoto** doesn't get a SurfaceAppearance (that would hide its TextureID). Upload
    `badge_photo.png` and set it as its `TextureID`.
 
@@ -158,8 +158,10 @@ parts with theirs.
 
 The bones point straight up with no roll, like Roblox's own R15 rigs, so an R15 animation
 turns each joint about the same axis it would on a player. Each body part is weighted to its
-own bone only, except two areas:
+own bone only, except three areas:
 
+- **Elbows and knees:** blend between the upper and lower bone, so they bend smoothly instead
+  of folding like a hinge.
 - **Hair:** blends from `Head` to `UpperTorso` at the shoulders, so it stays draped when she
   turns her head.
 - **Skirt and apron:** blend from `LowerTorso` into the thighs toward the hem, so the skirt
