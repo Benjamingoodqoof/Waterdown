@@ -1,0 +1,4 @@
+__pycache__/
+renders/_rom/
+*.blend1
+export/*.blend1
