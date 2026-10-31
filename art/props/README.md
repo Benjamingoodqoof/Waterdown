@@ -30,10 +30,14 @@ one's materials are baked into textures for Roblox's SurfaceAppearance.
     hallway with ▶ PLAY, a timecode and the date stamp), and a separate red REC light on the
     front
 - **Tape player:** a black rubber pistol grip with finger grooves and a play button where your
-  finger rests. A small black video camera sits on top, and the cassette bay is under the
-  camera. The bay has reel spindles and a capstan inside, and a door on the left side, hinged
-  along its bottom edge, that swings down to open. A green light sits on the back of the
-  camera. A tape fits the bay standing on its long edge, label facing out.
+  finger rests.
+  - **Screen:** a phone-like video screen sits on top on a hinge, tilted back to face whoever
+    holds the grip. It shows playback, with rewind, play and fast-forward buttons on its top
+    edge, speaker slots on its back and a green light beside the screen. The screen image is
+    its own part, `Screen`, so the game can show what's on the tape.
+  - **Bay:** the cassette bay is under the screen, with reel spindles and a capstan inside. Its
+    door is on the left side, hinged along its bottom edge, and swings down to open. A tape fits
+    the bay standing on its long edge, label facing out.
 
 ## Files
 
@@ -59,10 +63,10 @@ one's materials are baked into textures for Roblox's SurfaceAppearance.
 | | Screen | 2 | TextureID `screen_playback`, Material Neon or a SurfaceGui |
 | | Lens | 156 | Glass, dark blue-grey |
 | | RecLight | 224 | Neon, red (off: SmoothPlastic, dark red) |
-| Tape player | Body (deck and camera) | 3,182 | `tape_player_body_*` |
+| Tape player | Body (deck and screen unit) | 2,826 | `tape_player_body_*` |
 | | Handle (the grip) | 1,396 | `tape_player_handle_*` |
 | | Door | 1,000 | `tape_player_door_*` |
-| | Lens | 124 | Glass, dark blue-grey |
+| | Screen | 2 | TextureID `screen_playback`, Material Neon or a SurfaceGui |
 | | Light | 224 | Neon, green |
 
 Each SurfaceAppearance takes the four maps with that prefix: `_color` as ColorMap, `_normal`
@@ -75,7 +79,7 @@ as NormalMap, `_roughness` as RoughnessMap and `_metalness` as MetalnessMap.
    meter):
    - the tape is 0.27 studs long
    - the camcorder is 0.71 studs long
-   - the tape player is 0.71 studs tall
+   - the tape player is 0.82 studs tall
 
    That's true to life next to a 6 ft explorer. If you'd rather have chunkier gear, use
    `Model:ScaleTo(2)` before making the tools.
@@ -99,8 +103,9 @@ as NormalMap, `_roughness` as RoughnessMap and `_metalness` as MetalnessMap.
    handle.Parent = tool
    ```
 
-   The lenses point along −Z, Roblox's forward. If a tool sits in the hand the wrong way
-   round, turn it with `Tool.Grip`, for example `tool.Grip = CFrame.Angles(0, math.rad(180), 0)`.
+   The camcorder's lens points along −Z, Roblox's forward, and the tape player's screen faces
+   +Z, back at whoever holds it. If a tool sits in the hand the wrong way round, turn it with
+   `Tool.Grip`, for example `tool.Grip = CFrame.Angles(0, math.rad(180), 0)`.
 
 ### Opening the tape player's door
 
@@ -134,14 +139,14 @@ test this in Studio.
 
 ### Putting a tape in the bay
 
-A tape sits with its centre 0.054 studs below and 0.062 studs forward of the Body's centre,
-and 0.012 studs toward the door side. It stands on its long edge with its label facing out
+A tape sits with its centre 0.105 studs below the Body's centre (the screen unit raises the
+Body's centre above the bay), and 0.012 studs toward the door side. It stands on its long edge with its label facing out
 through the door:
 
 ```lua
 local function placeTape(player: Model, tape: Model)
     local body = player:FindFirstChild("Body", true) :: BasePart
-    local pos = Vector3.new(-0.0117, -0.054, 0.062)
+    local pos = Vector3.new(-0.0117, -0.1048, 0)
     local inBay = body.CFrame * CFrame.fromMatrix(pos, Vector3.new(0, 0, -1), Vector3.new(-1, 0, 0))
     tape:PivotTo(inBay)
 end

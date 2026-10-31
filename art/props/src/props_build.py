@@ -5,8 +5,9 @@
   reel, a gear and screws underneath, and a paper label the game can swap.
 - camcorder.blend: a 2000s handheld camcorder: silver body, black lens, hand strap, viewfinder,
   and its flip-out screen opened, showing playback.
-- tape_player.blend: a black pistol grip with a small video camera on top and a cassette bay
-  under the camera, closed by a door hinged along its bottom edge.
+- tape_player.blend: a black pistol grip with a phone-like video screen on top, tilted back to
+  face whoever holds it, and a cassette bay under it, closed by a door hinged along its bottom
+  edge.
 
 Parts that get their own SurfaceAppearance are baked (color, roughness, normal, metalness);
 glass, lights, the label and the screen are kept separate so the game can change them.
@@ -181,7 +182,6 @@ def build_player():
     rubber = L.plastic("Rubber", (0.022, 0.022, 0.024), 0.85, texture="knurl", tex_scale=450, tex_strength=0.25)
     white = L.plastic("Spindle", (0.78, 0.78, 0.76), 0.4, scuff=0.04)
     metal = L.plastic("Metal", (0.62, 0.63, 0.65), 0.22, metal=1.0, scuff=0.05)
-    coating = L.plastic("LensCoating", (0.03, 0.02, 0.08), 0.05, metal=0.6, scuff=0.0)
     bay = L.plastic("Bay", (0.008, 0.008, 0.009), 0.7, scuff=0.05)
     hx, hy, hz = 0.038, 0.112, 0.074  # the cassette housing
     housing = rbox("housing", (hx, hy, hz), (0, 0, 0), 0.006, matte, segs=3)
@@ -197,18 +197,25 @@ def build_player():
             parts.append(cyl("screw", 0.0022, 0.001, (-hx / 2 - 0.0002, y, z), metal, axis="X", segs=16))
     parts.append(L.plane("playprint", 0.028, 0.0075, (-hx / 2 - 0.0002, 0.0, 0.0), (-1, 0, 0), (0, 0, 1),
                          L.printed("PlayPrint", (0.016, 0.016, 0.018), "print_play.png", 0.55)))
-    # the video camera on top
-    cz = hz / 2 + 0.026
-    cam = rbox("camera", (0.046, 0.12, 0.052), (0, -0.004, cz), 0.009, gloss, segs=3)
-    for k in range(4):
-        cut(cam, rbox("c", (0.03, 0.0016, 0.002), (0, 0.02 + 0.007 * k, cz + 0.026), 0, gloss))  # vents
-    parts.append(cam)
-    parts.append(cyl("barrel", 0.023, 0.03, (0, -0.077, cz + 0.002), gloss, axis="Y", segs=40, bevel=0.0015))
-    parts.append(cyl("chrome", 0.0238, 0.003, (0, -0.069, cz + 0.002), metal, axis="Y", segs=40))
-    hood = cyl("hood", 0.025, 0.007, (0, -0.095, cz + 0.002), gloss, axis="Y", segs=40, bevel=0.001)
-    cut(hood, cyl("c", 0.019, 0.02, (0, -0.095, cz + 0.002), gloss, axis="Y", segs=40))
-    parts.append(hood)
-    parts.append(cyl("element", 0.016, 0.002, (0, -0.0935, cz + 0.002), coating, axis="Y", segs=32))
+    # the video player on top: a phone-like screen on a hinge, tilted back to face the holder
+    tilt = Matrix.Rotation(math.radians(20), 4, "X")
+    pivot = V(0, 0.02, hz / 2 + 0.008)
+
+    def on_unit(x, y, z):
+        """A point on the screen unit, in its own frame (origin at the middle of its bottom edge)."""
+        return pivot + (tilt @ V(x, y, z).to_4d()).to_3d()
+
+    uw, ud, uh = 0.112, 0.016, 0.078
+    unit = rbox("unit", (uw, ud, uh), on_unit(0, 0, uh / 2 + 0.003), 0.006, gloss, rot=tilt)
+    cut(unit, rbox("c", (0.098, 0.006, 0.066), on_unit(0, ud / 2 + 0.002, uh / 2 + 0.006), 0.002, gloss, rot=tilt))
+    for k in range(5):  # speaker slots on the back of the unit
+        cut(unit, rbox("c", (0.03, 0.004, 0.0016), on_unit(0.03, -ud / 2, 0.02 + 0.006 * k), 0, gloss, rot=tilt))
+    parts.append(unit)
+    for k, x in enumerate((-0.022, 0.0, 0.022)):  # rewind, play and fast-forward on its top edge
+        parts.append(rbox("button", (0.016, 0.008, 0.004), on_unit(x, 0.0, uh + 0.004), 0.0015,
+                          rubber if k == 1 else matte, rot=tilt))
+    parts.append(rbox("hingeblock", (0.034, 0.02, 0.012), (0, 0.02, hz / 2 + 0.004), 0.003, gloss))
+    parts.append(cyl("hinge", 0.0065, 0.044, pivot, metal, axis="X", segs=20, bevel=0.001))
     # the play button where your finger rests, under the front of the housing
     parts.append(rbox("trigger", (0.012, 0.009, 0.016), (0, -0.026, -hz / 2 - 0.008), 0.003, rubber))
     body = join(parts, "Body")
@@ -238,9 +245,10 @@ def build_player():
     tab = rbox("tab", (0.004, 0.016, 0.004), (0.0215, 0.0, 0.0315), 0.0012, gloss)
     knuckle = cyl("doorknuckle", 0.0028, 0.06, PLAYER_HINGE, metal, axis="Y", segs=16)
     door = join([door, tab, knuckle], "Door")
-    lens = cyl("Lens", 0.0192, 0.002, (0, -0.0955, cz + 0.002), L.glass("M_Lens", (0.55, 0.6, 0.7)), axis="Y", segs=32)
-    led = L.sphere("Light", 0.003, (0.014, 0.0565, cz + 0.012), L.light("M_Light", (0.2, 1.0, 0.35), 3.0))
-    return ({"Body": body, "Handle": grip, "Door": door, "Lens": lens, "Light": led},
+    screen = L.plane("Screen", 0.084, 0.063, on_unit(0, ud / 2 - 0.0006, uh / 2 + 0.006), tilt @ V(0, 1, 0),
+                     tilt @ V(0, 0, 1), L.textured("M_Screen", "screen_playback.png", 0.15, emit=1.5))
+    led = L.sphere("Light", 0.0025, on_unit(0.048, ud / 2 + 0.0004, 0.008), L.light("M_Light", (0.2, 1.0, 0.35), 3.0))
+    return ({"Body": body, "Handle": grip, "Door": door, "Screen": screen, "Light": led},
             {"Body": 1024, "Handle": 512, "Door": 512})
 
 

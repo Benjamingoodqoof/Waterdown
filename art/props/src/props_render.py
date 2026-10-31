@@ -23,8 +23,8 @@ SHOTS = {
     "tape_bottom": ("tape", (0, 0, 0.012), (0.12, -0.14, 0.12), 70, None, False, True),
     "camcorder_front": ("camcorder", (0, -0.01, 0.055), (-0.3, -0.36, 0.14), 55, None, False, False),
     "camcorder_back": ("camcorder", (0.03, 0.0, 0.055), (0.34, 0.3, 0.12), 55, None, False, False),
-    "player_open": ("tape_player", (0.0, 0.0, 0.11), (0.42, -0.3, 0.08), 55, 100, True, False),
-    "player_closed": ("tape_player", (0.0, 0.0, 0.11), (-0.4, -0.32, 0.1), 55, 0, False, False),
+    "player_open": ("tape_player", (0.0, 0.0, 0.16), (0.46, 0.36, 0.14), 50, 100, True, False),
+    "player_closed": ("tape_player", (0.0, 0.0, 0.16), (-0.44, 0.42, 0.16), 50, 0, False, False),
 }
 
 
