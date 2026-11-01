@@ -325,9 +325,10 @@ def light(name, color, strength=4.0):
 
 
 # ---------------------------------------------------------------- baking to Roblox textures
-def bake(ob, size, prefix, out_dir):
-    """Unwraps a part and bakes its materials into color, roughness, normal and metalness
-    maps, then gives it a single material using them (what SurfaceAppearance takes)."""
+def bake(ob, size, prefix, out_dir, unwrap=True):
+    """Unwraps a part (unless unwrap is False: then its UVMap layout is kept) and bakes its
+    materials into color, roughness, normal and metalness maps, then gives it a single material
+    using them (what SurfaceAppearance takes)."""
     sc = bpy.context.scene
     sc.cycles.samples = 8
     me = ob.data
@@ -336,11 +337,12 @@ def bake(ob, size, prefix, out_dir):
     me.uv_layers.active = me.uv_layers["UVMap"]
     me.uv_layers["UVMap"].active_render = True
     activate(ob)
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.006)
-    bpy.ops.uv.pack_islands(margin=0.004)
-    bpy.ops.object.mode_set(mode="OBJECT")
+    if unwrap:
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.006)
+        bpy.ops.uv.pack_islands(margin=0.004)
+        bpy.ops.object.mode_set(mode="OBJECT")
     maps = {}
     for kind in ("color", "roughness", "normal", "metalness"):
         img = bpy.data.images.new(f"{prefix}_{kind}", size, size, alpha=False)
