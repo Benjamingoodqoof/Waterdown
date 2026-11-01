@@ -3,7 +3,8 @@
 The floor-4 monster for REM CYCLE: an 8 ft man made entirely of thick, tangled, coiled black
 phone cord. His head is a smoked black glass phone full of dirty water, with its dial torn out
 of the face and set into his chest like a heart. He carries his own handset. Built
-procedurally in Blender 5.2 (`bpy`) and rigged for Roblox.
+procedurally in Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run, and a
+Call for his fake calls).
 
 ![turnaround](renders/studio_turnaround.png)
 
@@ -53,9 +54,11 @@ procedurally in Blender 5.2 (`bpy`) and rigged for Roblox.
 | Path | What it is |
 |---|---|
 | `export/Receiver.fbx` | Rigged model for Roblox's 3D Importer: 7.1 studs tall, origin at the pelvis, textures embedded |
-| `export/Receiver_Roblox.blend` | The same 7.1-stud model and rig, for animating and exporting with a Roblox plugin |
-| `export/Receiver.glb` | Same model as glTF with PBR textures |
-| `receiver.blend` | Blender source at real-world size (2.3 m to the top of his head as he stands hunched), with rig, weights and materials |
+| `export/Receiver_Roblox.blend` | The same 7.1-stud model and rig with the Idle, Walk, Run and Call actions, for exporting the animations with a Roblox plugin |
+| `export/Receiver_Idle.fbx`, `_Walk.fbx`, `_Run.fbx`, `_Call.fbx` | One animation each, for the Animation Editor's FBX import |
+| `export/Receiver.glb` | Same model as glTF with PBR textures and all four animations |
+| `receiver.blend` | Blender source at real-world size (2.3 m to the top of his head as he stands hunched), with rig, weights, materials and animations |
+| `renders/animations/` | Preview videos of the four animations |
 | `textures/roblox/` | The maps for SurfaceAppearance, all 1024 px (see Importing) |
 | `renders/` | Previews: `studio_*` (the pose Studio shows, plus close-ups of the head, dial, hand and feet), `closet_three` and `closet_alarm_three` (in a dark closet, and in the alarm). `rom_sheet.png` is the deformation test |
 | `src/` | Scripts that generate all of the above |
@@ -143,8 +146,8 @@ lighter version is possible with fewer, coarser cords.
   ```
 
   If it wobbles instead of spinning in place, use `CFrame.Angles(angle, 0, 0)` instead. I
-  haven't been able to test this in Studio. Animations can also key `DialSpin`, for a dial
-  that rattles round in steps like a real one.
+  haven't been able to test this in Studio. The `Call` animation already spins it (one full
+  turn each loop), so playing `Call` is the simplest way to do it.
 - **Floor-4 alarm:**
 
   ```lua
@@ -169,6 +172,32 @@ lighter version is possible with fewer, coarser cords.
   ```
 - **Wet trail:** a water decal or puddle part dropped behind his feet sells "leaves a wet
   trail on playback". The renders show the kind of puddle he stands in.
+
+## Animations
+
+All four are in place (the Humanoid does the moving), 30 fps, keyed on every frame, and loop
+seamlessly (the last frame equals the first). The legs were solved with IK while animating so
+planted feet don't slide, then written out as plain rotation keys, so nothing needs a
+constraint or a special exporter.
+
+| Action | Length | Loop | Feel |
+|---|---|---|---|
+| `Idle` | 120 frames (4 s) | yes | Hunched, two slow heavy breaths; the phone head tilts slowly as if listening; the claw slowly closes and opens; the handset held still |
+| `Walk` | 36 frames (1.2 s) | yes | "Quick bursts": hunched strides that hurry and catch, so his steps come in spurts; the claw arm swings, the handset arm holds on |
+| `Run` | 20 frames (0.67 s) | yes | A low, lunging charge, head down; the claw reaches ahead and opens wide at the front of each swing, the handset arm pumps |
+| `Call` | 90 frames (3 s) | yes | He lifts the handset to the side of his head, cocks his head to it and listens, and the dial in his chest turns a full circle |
+
+**Matching speed:** the feet are matched to these ground speeds (the walk's average; it comes
+in bursts). At other WalkSpeeds, scale the track speed to match, for example
+`track:AdjustSpeed(humanoid.WalkSpeed / 17.8)` for the run.
+
+- **Walk:** 4.3 studs/s
+- **Run:** 17.8 studs/s
+
+**Exporting them yourself:** open `export/Receiver_Roblox.blend`. It matches the model you
+imported (7.1 studs, origin at the pelvis). Pick an action on `Receiver_Rig` and export it with
+your plugin. Only `LowerTorso` has translation keys (the bob and sway); every other bone is
+rotation only.
 
 ## Rig
 
@@ -202,10 +231,16 @@ python3 receiver_textures.py ../textures                 # cord, phone parts, gl
 python3 receiver_build.py ../receiver.blend              # model, rig and weights
 python3 receiver_render.py ../receiver.blend ../renders  # previews (--look studio|closet, --alarm, --views ...)
 python3 receiver_rig_check.py ../receiver.blend ../renders/rom_sheet.png
-python3 receiver_export.py ../receiver.blend ../export   # FBX, GLB and Roblox .blend (--height-studs 7.11)
+python3 receiver_animate.py ../receiver.blend            # keyframe Idle, Walk, Run and Call
+python3 receiver_export.py ../receiver.blend ../export   # FBX (model + one per animation), GLB and Roblox .blend (--height-studs 7.11)
+
+# from art/: a contact sheet and preview videos of the animations
+python3 shared/anim_sheet.py receiver/receiver.blend Receiver_Rig sheet.png --actions Idle,Walk,Run,Call
+python3 shared/anim_preview.py receiver/receiver.blend Receiver_Rig receiver/renders/animations --actions Idle,Walk,Run,Call --target 0,0,1.15 --offset=-4.8,-4.0,0.3 --lens 48
 ```
 
 Everything is seeded, so a rebuild gives the same Receiver.
 
 - **Joint positions, hands, rig and dial layout:** `receiver_common.py`
 - **How the cords are laid:** `build_torso`, `build_arms`, `build_legs` and the rest in `receiver_build.py`
+- **The animations:** `receiver_animate.py`, using the shared tools in `../shared/anim_core.py`

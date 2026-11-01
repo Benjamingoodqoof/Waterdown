@@ -231,8 +231,9 @@ FBX_KW = dict(object_types={"ARMATURE", "MESH"}, use_mesh_modifiers=False, add_l
 
 
 def export_actions(rig, out_dir, base, names=("Idle", "Walk", "Run"), fbx_kw=None):
-    """After the scene is scaled to studs: base.fbx (rest pose), base_<Action>.fbx for each
-    action, base.glb with every action, and base_Roblox.blend."""
+    """After the scene is scaled to studs: base.fbx (rest pose, textures embedded),
+    base_<Action>.fbx for each action (no textures), base.glb with every action, and
+    base_Roblox.blend."""
     kw = dict(FBX_KW, **(fbx_kw or {}))
     sc = bpy.context.scene
     acts = [bpy.data.actions[n] for n in names if n in bpy.data.actions]
@@ -245,9 +246,11 @@ def export_actions(rig, out_dir, base, names=("Idle", "Walk", "Run"), fbx_kw=Non
     for act in acts:
         rig.animation_data.action = act
         sc.frame_start, sc.frame_end = int(act.frame_start), int(act.frame_end)
+        # the animation files carry the rig and meshes but not the textures (the model file has them)
         bpy.ops.export_scene.fbx(filepath=os.path.join(out_dir, f"{base}_{act.name}.fbx"), bake_anim=True,
                                  bake_anim_use_all_actions=False, bake_anim_use_nla_strips=False,
-                                 bake_anim_force_startend_keying=True, bake_anim_simplify_factor=0.0, **kw)
+                                 bake_anim_force_startend_keying=True, bake_anim_simplify_factor=0.0,
+                                 **dict(kw, embed_textures=False, path_mode="STRIP"))
     if acts:
         rig.animation_data.action = acts[0]
         sc.frame_start, sc.frame_end = 0, int(acts[0].frame_end)
@@ -261,8 +264,8 @@ def export_actions(rig, out_dir, base, names=("Idle", "Walk", "Run"), fbx_kw=Non
 
 def preview(rig, out_dir, views, actions=("Idle", "Walk", "Run"), step=1, loops=3):
     """Renders each action from its camera in `views` ({action: view name in render.VIEWS})
-    to an mp4 (looped `loops` times; the idle once). The scene, lights and cameras are the
-    caller's."""
+    to an mp4 (looped `loops` times; the idle once). step: every how many frames to render
+    (an int, or {action: int}). The scene, lights and cameras are the caller's."""
     import render  # the poster monster's studio helpers, on the caller's path
     sc = bpy.context.scene
     os.makedirs(out_dir, exist_ok=True)
@@ -273,7 +276,8 @@ def preview(rig, out_dir, views, actions=("Idle", "Walk", "Run"), step=1, loops=
         frames_dir = os.path.join(os.path.abspath(out_dir), f"_{name}")
         os.makedirs(frames_dir, exist_ok=True)
         paths = []
-        for f in range(int(act.frame_start), int(act.frame_end), step):
+        st = step.get(name, 1) if isinstance(step, dict) else step
+        for f in range(int(act.frame_start), int(act.frame_end), st):
             sc.frame_set(f)
             p = os.path.join(frames_dir, f"f_{f:04d}.png")
             sc.render.filepath = p
@@ -283,7 +287,7 @@ def preview(rig, out_dir, views, actions=("Idle", "Walk", "Run"), step=1, loops=
         with open(listing, "w") as fh:
             for _ in range(1 if name == "Idle" else loops):
                 for p in paths:
-                    fh.write(f"file '{p}'\nduration {step / FPS:.5f}\n")
+                    fh.write(f"file '{p}'\nduration {st / FPS:.5f}\n")
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", listing, "-vf",
                         "fps=30,format=yuv420p", "-c:v", "libx264", "-crf", "20", os.path.join(out_dir, f"{name}.mp4")],
                        check=True)

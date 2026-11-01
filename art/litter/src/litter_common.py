@@ -44,7 +44,8 @@ def leg_layout(side, sx, k):
 
 
 def litterling_bones():
-    b = {"Root": (V(0, 0, 0), V(0, 0, 0.1), None), "Body": (BODY_C, BODY_C + V(0, 0, 0.15), "Root")}
+    # Root sits at the body's height (where Roblox puts the HumanoidRootPart), between the legs
+    b = {"Root": (V(0, 0, BODY_C.z), V(0, 0, BODY_C.z + 0.1), None), "Body": (BODY_C, BODY_C + V(0, 0, 0.15), "Root")}
     for side, sx in SIDES:
         for k in range(LEGS):
             hip, knee, foot = leg_layout(side, sx, k)

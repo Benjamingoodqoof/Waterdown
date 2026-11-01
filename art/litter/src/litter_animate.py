@@ -4,8 +4,8 @@
 - the stack: hunched and heaving. Every creature in it keeps shifting and looking about on its
   slot, and each footstep sends a wobble up through the creatures. The walk is a heavy
   lumber; the run is a scrambling charge, leaning in with the claws reaching.
-- the litterling: a twitchy idle, and a scuttling tripod gait (front and back legs of one side
-  with the middle leg of the other) for the walk and run.
+- the litterling: an idle that taps the floor and rears up with its front legs raised, and a
+  scuttling, spider-like alternating gait (L1 R2 L3 R4, then R1 L2 R3 L4) for the walk and run.
 
 Usage: python3 litter_animate.py LITTER_DIR [--only stack|litterling]
 """
@@ -128,46 +128,53 @@ def stack_run(an, phi, f):
 
 
 # ================================================================ the litterling
-LEGS = [(side, sx, k) for side, sx in SIDES for k in range(3)]
-TRIPOD = {("Left", 0): 0, ("Right", 1): 0, ("Left", 2): 0, ("Right", 0): 1, ("Left", 1): 1, ("Right", 2): 1}
+LEGS = [(side, sx, k) for side, sx in SIDES for k in range(C.LEGS)]
+# an alternating tetrapod, like a spider's: L1 R2 L3 R4 step together, then R1 L2 R3 L4
+GROUP = {(side, k): (k + (side == "Right")) % 2 for side, _ in SIDES for k in range(C.LEGS)}
 
 
-def litter_legs(an, phi, duty, stride, lift, body_drop=0.0, tap=None):
+def litter_legs(an, phi, duty, stride, lift, lift_legs=None):
+    """All eight legs: feet planted during stance, sliding back at ground speed; lift_legs adds
+    an offset to a few feet ({(side, k): Vector})."""
     for side, sx, k in LEGS:
         hip, knee, foot = C.leg_layout(side, sx, k)
         y, z = 0.0, 0.0
         if stride:
-            ph = (phi + 0.5 * TRIPOD[(side, k)]) % 1.0
+            ph = (phi + 0.5 * GROUP[(side, k)] + 0.04 * k) % 1.0  # the back legs a touch behind
             if ph < duty:
                 y = -stride / 2 + stride * ph / duty
             else:
                 s = (ph - duty) / (1 - duty)
                 y = stride / 2 - stride * A.ease(s)
                 z = lift * math.sin(math.pi * s)
-        if tap and tap[0] == (side, k):
-            z += tap[1]
-        target = foot + Vector((0, y, z))
+        target = foot + Vector((0, y, z)) + (lift_legs or {}).get((side, k), Vector())
         pole = (knee - C.BODY_C)
         pole = Vector((pole.x, pole.y, 0)).normalized() * 0.3 + Vector((0, 0, 1))
         an.two_bone(f"Leg{side[0]}{k + 1}A", f"Leg{side[0]}{k + 1}B", target, pole)
 
 
 def ling_idle(an, phi, f):
+    """Still, breathing, the body turning to look about; a front leg taps the floor, then it
+    rears up with its front legs raised, and settles."""
     br = wave(phi, 2)
-    an.fk({"Body": [("x", 3 * br), ("z", 10 * wave(phi, 1, 0.2)), ("y", 4 * wave(phi, 1, 0.45))]},
-          {"Body": (0.004 * wave(phi, 1, 0.1), 0.0, 0.008 * br - 0.01)})
-    tap = None
-    t = bump(f, 30, 34, 42)  # a front leg taps the floor, twice
-    t2 = bump(f, 46, 49, 56)
-    if t or t2:
-        tap = (("Left", 0), 0.05 * max(t, t2))
-    t3 = bump(f, 70, 73, 80)
-    if t3:
-        tap = (("Right", 0), 0.04 * t3)
-    litter_legs(an, phi, 0, 0, 0, tap=tap)
+    rear = bump(f, 52, 62, 80)
+    an.fk({"Body": [("x", 3 * br - 18 * rear), ("z", 10 * wave(phi, 1, 0.2)), ("y", 4 * wave(phi, 1, 0.45))]},
+          {"Body": (0.004 * wave(phi, 1, 0.1), 0.012 * rear, 0.008 * br - 0.01 + 0.035 * rear)})
+    lifts = {}
+    tap = max(bump(f, 18, 22, 30), bump(f, 32, 35, 42))  # a front leg taps the floor, twice
+    if tap:
+        lifts[("Left", 0)] = Vector((0, -0.01, 0.05 * tap))
+    if rear:
+        for side, sx in SIDES:  # the front legs raised and spread, feeling the air
+            lifts[(side, 0)] = Vector((sx * 0.03, -0.06, 0.16)) * rear + Vector((0, 0, 0.012 * wave(phi, 6)))
+            lifts[(side, 1)] = Vector((sx * 0.02, -0.02, 0.05)) * rear
+    tap2 = bump(f, 96, 99, 106)
+    if tap2:
+        lifts[("Right", 1)] = Vector((0, 0, 0.04 * tap2))
+    litter_legs(an, phi, 0, 0, 0, lifts)
 
 
-LING_WALK_T, LING_RUN_T = 16, 10
+LING_WALK_T, LING_RUN_T = 16, 8
 
 
 def ling_walk(an, phi, f):
@@ -179,7 +186,7 @@ def ling_walk(an, phi, f):
 
 
 def ling_run(an, phi, f):
-    duty, stride = 0.45, 0.27
+    duty, stride = 0.4, 0.3
     an.fk({"Body": [("x", 10 + 3 * cwave(phi, 2)), ("z", 5 * wave(phi, 1)), ("y", 4 * cwave(phi, 1))]},
           {"Body": (0.008 * wave(phi, 1), -0.01, -0.045 + 0.02 * (0.5 - 0.5 * cwave(phi, 2)))})
     litter_legs(an, phi, duty, stride, 0.085)
@@ -197,7 +204,7 @@ def main():
         jobs.append(("stack.blend", "Stack_Rig", (("Idle", 120, stack_idle), ("Walk", STACK_WALK_T, stack_walk),
                                                   ("Run", STACK_RUN_T, stack_run)), ("LowerTorso",)))
     if a.only in (None, "litterling"):
-        jobs.append(("litterling.blend", "Litterling_Rig", (("Idle", 90, ling_idle), ("Walk", LING_WALK_T, ling_walk),
+        jobs.append(("litterling.blend", "Litterling_Rig", (("Idle", 120, ling_idle), ("Walk", LING_WALK_T, ling_walk),
                                                             ("Run", LING_RUN_T, ling_run)), ("Body",)))
     for blend, rig_name, actions, loc in jobs:
         bpy.ops.wm.open_mainfile(filepath=os.path.join(root, blend))

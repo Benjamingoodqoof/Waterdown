@@ -4,7 +4,7 @@ The floor-2 monster for REM CYCLE, built from his monster sheet: a very tall, th
 long orange suit, with a boxy 90s CRT monitor where his head should be. The screen shows
 static and NO SIGNAL until he picks someone to copy. Then their face comes up on the screen,
 his body glitches apart, and he steps out looking exactly like them. Built procedurally in
-Blender 5.2 (`bpy`) and rigged for Roblox.
+Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run).
 
 ![turnaround](renders/studio_turnaround.png)
 
@@ -39,9 +39,11 @@ screen `#1B0C06`, screen glow `#FFB07A`, shirt `#FFF0E2`, tie and shoes `#7A2D06
 | Path | What it is |
 |---|---|
 | `export/StandIn.fbx` | Rigged model for Roblox's 3D Importer: 7.8 studs tall, origin at the pelvis, textures embedded |
-| `export/StandIn_Roblox.blend` | The same 7.8-stud model and rig, for animating and exporting with a Roblox plugin |
-| `export/StandIn.glb` | Same model as glTF |
-| `stand_in.blend` | Blender source at real-world size (2.69 m), with rig, weights and materials |
+| `export/StandIn_Roblox.blend` | The same 7.8-stud model and rig with the Idle, Walk and Run actions, for exporting the animations with a Roblox plugin |
+| `export/StandIn_Idle.fbx`, `_Walk.fbx`, `_Run.fbx` | One animation each, for the Animation Editor's FBX import |
+| `export/StandIn.glb` | Same model as glTF, with all three animations |
+| `stand_in.blend` | Blender source at real-world size (2.69 m), with rig, weights, materials and animations |
+| `renders/animations/` | Preview videos of the three animations |
 | `textures/roblox/` | Baked maps for each part's SurfaceAppearance, and the NO SIGNAL screen image |
 | `textures/` | The screen, badge and sticker artwork |
 | `renders/` | Previews: `studio_*`, `hall_hallway` (in a dark corridor). `rom_sheet.png` is the deformation test |
@@ -111,8 +113,36 @@ under 10k triangles and has at most 3 bone weights per vertex.
 - **The glitch into a copy:** the sheet's plan works with this model as it is. Flicker his
   parts' transparency, offset tinted clones sideways and play a static burst, then swap him
   for an avatar rig built with `Players:GetHumanoidDescriptionFromUserId`.
-- **The cable:** `Cable1` → `Cable2` → `Cable3` hang off `UpperTorso`. Key them in his walk
-  so the cable swings a beat behind him.
+- **The cable:** `Cable1` → `Cable2` → `Cable3` hang off `UpperTorso`. All three animations
+  swing it a beat behind him.
+
+## Animations
+
+All three are in place (the Humanoid does the moving), 30 fps, keyed on every frame, and loop
+seamlessly (the last frame equals the first). The legs were solved with IK while animating so
+planted feet don't slide, then written out as plain rotation keys, so nothing needs a
+constraint or a special exporter. He moves "slow, stooped": a tall man with too-long limbs who
+doesn't quite know how to use them.
+
+| Action | Length | Loop | Feel |
+|---|---|---|---|
+| `Idle` | 120 frames (4 s) | yes | Stooped and still, swaying a little; the monitor drifts and tips as if he's watching you; his long fingers slowly curl and uncurl, one hand then the other |
+| `Walk` | 48 frames (1.6 s) | yes | Long, slow, stooped strides; the arms hang and barely swing |
+| `Run` | 24 frames (0.8 s) | yes | A lanky lope leaning forward, the arms loose and trailing, never quite in time; the monitor bobs and the cable is flung out behind him |
+
+The cable down his back swings a beat behind his body in all three.
+
+**Matching speed:** the feet are matched to these ground speeds. At other WalkSpeeds, scale
+the track speed to match, for example `track:AdjustSpeed(humanoid.WalkSpeed / 14.6)` for the
+run.
+
+- **Walk:** 3.3 studs/s
+- **Run:** 14.6 studs/s
+
+**Exporting them yourself:** open `export/StandIn_Roblox.blend`. It matches the model you
+imported (7.8 studs, origin at the pelvis). Pick an action on `StandIn_Rig` and export it with
+your plugin. Only `LowerTorso` has translation keys (the bob and sway); every other bone is
+rotation only.
 
 ## Rig
 
@@ -147,8 +177,14 @@ python3 standin_textures.py ../textures                  # the screen, badge and
 python3 standin_build.py ../stand_in.blend               # model, rig, weights and baked textures
 python3 standin_render.py ../stand_in.blend ../renders   # previews (--look studio|hall, --views ...)
 python3 standin_rig_check.py ../stand_in.blend ../renders/rom_sheet.png
-python3 standin_export.py ../stand_in.blend ../export    # FBX, GLB, Roblox .blend and textures/roblox
+python3 standin_animate.py ../stand_in.blend             # keyframe Idle, Walk and Run
+python3 standin_export.py ../stand_in.blend ../export    # FBX (model + one per animation), GLB, Roblox .blend and textures/roblox
+
+# from art/: a contact sheet and preview videos of the animations
+python3 shared/anim_sheet.py stand_in/stand_in.blend StandIn_Rig sheet.png --target 0,0,1.25 --offset=-5.5,-4.5,0.3
+python3 shared/anim_preview.py stand_in/stand_in.blend StandIn_Rig stand_in/renders/animations --target 0,0,1.3 --offset=-5.5,-4.5,0.3 --lens 50 --neutral
 ```
 
 - **Joints, hands, rig, monitor size and the cable's path:** `standin_common.py`
 - **Coat, sleeves, trousers, shirt, hands, shoes, monitor and cables:** `standin_build.py`
+- **The animations:** `standin_animate.py`, using the shared tools in `../shared/anim_core.py`
