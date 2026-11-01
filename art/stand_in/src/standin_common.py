@@ -1,85 +1,105 @@
-"""Shared layout for the Stand-in: texture atlas regions, joint positions and the R15 rig.
+"""Shared layout for the Stand-In: joints, hands, the rig and the palette.
 
-Blender units are meters, Z is up, she faces -Y, so her left side is +X. Height is
-2.53 m (8.3 ft). Bones point straight up with no roll, the way Roblox's own R15 rigs do,
-so standard Roblox animations rotate her joints about the same axes as a player's.
+Blender units are meters, Z is up, he faces -Y, so his left side is +X. He's 2.69 m (8.75 ft)
+to the top of his monitor, very tall and thin, standing slightly stooped.
 """
+import math
+
 import bpy  # noqa: F401  (loads mathutils when running as a module)
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 
 def V(*a):
     return Vector(a)
 
 
-HEIGHT = 2.53
+HEIGHT = 2.69
+SIDES = (("Left", 1.0), ("Right", -1.0))
 
-# ---------------------------------------------------------------- atlas (2048 px, x right, y down)
-ATLAS = 2048
-REGIONS = {
-    "skin": (0, 0, 1024, 512),
-    "sole": (1024, 0, 1280, 256),
-    "shoe": (1280, 0, 1536, 256),
-    "metal": (1536, 0, 1792, 256),
-    "button": (1792, 0, 2048, 256),
-    "belt": (1024, 256, 2048, 512),
-    "skirt": (0, 512, 1024, 1024),
-    "bodice": (1024, 512, 1536, 1024),
-    "sleeve": (1536, 512, 2048, 768),
-    "collar": (1536, 768, 2048, 1024),
-    "apron": (0, 1024, 768, 1536),
-    "pocket": (768, 1024, 1024, 1280),
-    "hair_under": (768, 1280, 1024, 1536),
-    "hair": (1024, 1024, 1536, 1536),
-    "scalp": (1536, 1024, 2048, 1536),
-    "badge": (1024, 1536, 1344, 1728),
-    "lining": (0, 1536, 256, 1792),
+PALETTE = {  # from the monster sheet
+    "suit": (242, 104, 16), "suit_shade": (201, 82, 31), "monitor": (255, 144, 85), "dead_screen": (27, 12, 6),
+    "screen_glow": (255, 176, 122), "shirt": (255, 240, 226), "tie": (122, 45, 6), "hands": (244, 184, 140),
 }
-
-
-def region_uv(name, inset=4):
-    x0, y0, x1, y1 = REGIONS[name]
-    return (x0 + inset) / ATLAS, 1 - (y1 - inset) / ATLAS, (x1 - inset) / ATLAS, 1 - (y0 + inset) / ATLAS
-
-
-def in_region(name, u, v):
-    """Map (u, v) in 0..1 into a region's UV rect."""
-    u0, v0, u1, v1 = region_uv(name)
-    return u0 + (u1 - u0) * min(1.0, max(0.0, u)), v0 + (v1 - v0) * min(1.0, max(0.0, v))
-
 
 # ---------------------------------------------------------------- joints
 J = {
-    "root": V(0, 0, 1.55),
-    "waist": V(0, 0, 1.72),
-    "neck": V(0, 0.0, 2.20),
-    "head_c": V(0, 0.004, 2.345),
-}
-SIDES = (("Left", 1.0), ("Right", -1.0))
-for _s, _x in SIDES:
-    J[f"shoulder_{_s}"] = V(0.205 * _x, 0.0, 2.095)
-    J[f"elbow_{_s}"] = V(0.23 * _x, 0.01, 1.60)
-    J[f"wrist_{_s}"] = V(0.245 * _x, -0.005, 1.245)
-    J[f"hip_{_s}"] = V(0.092 * _x, 0.0, 1.43)
-    J[f"knee_{_s}"] = V(0.086 * _x, -0.01, 0.765)
-    J[f"ankle_{_s}"] = V(0.072 * _x, 0.015, 0.105)
-
-# R15 bones: name -> (joint the bone sits on, parent)
-BONES = {
-    "Root": ("root", None),
-    "HumanoidRootNode": ("root", "Root"),
-    "LowerTorso": ("root", "HumanoidRootNode"),
-    "UpperTorso": ("waist", "LowerTorso"),
-    "Head": ("neck", "UpperTorso"),
+    "root": V(0, 0.02, 1.36),
+    "waist": V(0, 0.02, 1.6),
+    "neck": V(0, -0.02, 2.24),  # where the cable comes up out of his collar
+    "head_top": V(0, -0.05, 2.69),
 }
 for _s, _x in SIDES:
-    BONES[f"{_s}UpperArm"] = (f"shoulder_{_s}", "UpperTorso")
-    BONES[f"{_s}LowerArm"] = (f"elbow_{_s}", f"{_s}UpperArm")
-    BONES[f"{_s}Hand"] = (f"wrist_{_s}", f"{_s}LowerArm")
-    BONES[f"{_s}UpperLeg"] = (f"hip_{_s}", "LowerTorso")
-    BONES[f"{_s}LowerLeg"] = (f"knee_{_s}", f"{_s}UpperLeg")
-    BONES[f"{_s}Foot"] = (f"ankle_{_s}", f"{_s}LowerLeg")
+    J[f"shoulder_{_s}"] = V(0.205 * _x, 0.005, 2.165)
+    J[f"elbow_{_s}"] = V(0.235 * _x, 0.04, 1.66)
+    J[f"wrist_{_s}"] = V(0.25 * _x, 0.0, 1.2)
+    J[f"hip_{_s}"] = V(0.095 * _x, 0.02, 1.32)
+    J[f"knee_{_s}"] = V(0.105 * _x, -0.02, 0.72)
+    J[f"ankle_{_s}"] = V(0.105 * _x, 0.03, 0.095)
+    J[f"toe_{_s}"] = V(0.11 * _x, -0.14, 0.02)
 
-# the 15 R15 body parts (one mesh each); Hair and BadgePhoto are extra meshes on the same rig
-PARTS = ["Head", "UpperTorso", "LowerTorso"] + [f"{s}{p}" for s, _ in SIDES for p in
-                                                 ("UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot")]
+# the monitor: its underside sits just above the collar, tipped forward a little (he's stooped)
+MONITOR = {"w": 0.42, "h": 0.36, "bezel_d": 0.075, "depth": 0.42, "bottom": 2.33, "y": -0.04, "tilt": 6}
+# the cable that hangs down his back, held by three bones so it can sway
+CABLE = [V(0.06, 0.2, 2.36), V(0.07, 0.17, 2.1), V(0.06, 0.16, 1.7), V(0.03, 0.17, 1.3), V(0.0, 0.2, 0.92)]
+
+FINGERS = ("Thumb", "Index", "Middle", "Ring", "Pinky")
+
+
+def rot(v, axis, deg):
+    return Quaternion(axis, math.radians(deg)) @ v
+
+
+def hand_frame(side, sx):
+    """(wrist, down the hand, palm normal facing his thigh, across toward the index finger)."""
+    w = J[f"wrist_{side}"]
+    d = (w - J[f"elbow_{side}"]).normalized()
+    pn = V(-sx, 0, 0)
+    pn = (pn - d * pn.dot(d)).normalized()
+    a = d.cross(pn).normalized()
+    if a.y > 0:
+        a = -a
+    return w, d, pn, a
+
+
+def hand_layout(side, sx):
+    """Long thin fingers hanging relaxed, curled a little: {finger: [knuckle, middle, tip]}."""
+    w, d, pn, a = hand_frame(side, sx)
+    out = {}
+    lengths = {"Index": 0.19, "Middle": 0.215, "Ring": 0.2, "Pinky": 0.165}
+    for i, f in enumerate(("Index", "Middle", "Ring", "Pinky")):
+        k = w + d * 0.115 + a * (0.027 - 0.018 * i)
+        d1 = (rot(d, pn, (1.5 - i) * 3) + pn * math.tan(math.radians(10))).normalized()
+        m = k + d1 * lengths[f] * 0.52
+        d2 = (d1 + pn * math.tan(math.radians(22))).normalized()
+        out[f] = [k, m, m + d2 * lengths[f] * 0.48]
+    t0 = w + d * 0.035 + a * 0.032 + pn * 0.012
+    t1 = t0 + (d * 0.6 + a * 0.55 + pn * 0.35).normalized() * 0.07
+    out["Thumb"] = [t0, t1, t1 + (d * 0.85 + a * 0.15 + pn * 0.3).normalized() * 0.065]
+    return out
+
+
+def bones():
+    """name -> (head, tail, parent). Bones run along the limbs."""
+    up = V(0, 0, 0.2)
+    b = {
+        "Root": (J["root"], J["root"] + up, None),
+        "HumanoidRootNode": (J["root"], J["root"] + up, "Root"),
+        "LowerTorso": (J["root"], J["waist"], "HumanoidRootNode"),
+        "UpperTorso": (J["waist"], J["neck"], "LowerTorso"),
+        "Head": (J["neck"], J["head_top"], "UpperTorso"),
+        "Cable1": (CABLE[1], CABLE[2], "UpperTorso"),
+        "Cable2": (CABLE[2], CABLE[3], "Cable1"),
+        "Cable3": (CABLE[3], CABLE[4], "Cable2"),
+    }
+    for s, sx in SIDES:
+        w, d, pn, a = hand_frame(s, sx)
+        b[f"{s}UpperArm"] = (J[f"shoulder_{s}"], J[f"elbow_{s}"], "UpperTorso")
+        b[f"{s}LowerArm"] = (J[f"elbow_{s}"], J[f"wrist_{s}"], f"{s}UpperArm")
+        b[f"{s}Hand"] = (J[f"wrist_{s}"], w + d * 0.115, f"{s}LowerArm")
+        for f, (k, m, t) in hand_layout(s, sx).items():
+            b[f"{s}{f}1"] = (k, m, f"{s}Hand")
+            b[f"{s}{f}2"] = (m, t, f"{s}{f}1")
+        b[f"{s}UpperLeg"] = (J[f"hip_{s}"], J[f"knee_{s}"], "LowerTorso")
+        b[f"{s}LowerLeg"] = (J[f"knee_{s}"], J[f"ankle_{s}"], f"{s}UpperLeg")
+        b[f"{s}Foot"] = (J[f"ankle_{s}"], J[f"toe_{s}"], f"{s}LowerLeg")
+    return b

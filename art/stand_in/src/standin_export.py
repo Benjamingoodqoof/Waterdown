@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Exports the Stand-in for Roblox: an R15 model (15 body parts plus BadgePhoto) as .fbx and
-.glb, and a Roblox-scaled .blend, with 1024px textures.
+"""Exports the Stand-In for Roblox: his rigged model as .fbx and .glb, and a Roblox-scaled .blend.
 
-The scale matches the poster monster (8 studs for 9 ft), so she is about 7.4 studs tall, and
-the origin is her pelvis (the Root bone), where Roblox puts the HumanoidRootPart.
+The scale matches the poster monster (8 studs for 9 ft), so at 8.75 ft he is 7.8 studs tall, and
+the origin is his pelvis (the Root bone), where Roblox puts the HumanoidRootPart. Also
+copies the baked maps and the screen image into textures/roblox/.
 
-Usage: python3 standin_export.py BLEND OUT_DIR [--height-studs 7.38]
+Usage: python3 standin_export.py BLEND OUT_DIR [--height-studs 7.78]
 """
 import argparse
 import os
+import shutil
 import sys
 
 import bpy
@@ -17,14 +18,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(1, os.path.normpath(os.path.join(HERE, "..", "..", "poster_monster", "src")))
 from export import to_roblox_units  # noqa: E402
 
-TEX_RBX = os.path.normpath(os.path.join(HERE, "..", "textures", "roblox"))
-
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("blend")
     ap.add_argument("out")
-    ap.add_argument("--height-studs", type=float, default=8.0 * 8.3 / 9.0)
+    ap.add_argument("--height-studs", type=float, default=8.0 * 8.75 / 9.0)
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     bpy.ops.wm.open_mainfile(filepath=os.path.abspath(a.blend))
@@ -35,14 +34,6 @@ def main():
         pb.location = (0, 0, 0)
         pb.scale = (1, 1, 1)
     scale, pelvis = to_roblox_units(rig, a.height_studs)
-    # swap the 2048 authoring maps for the 1024 copies Roblox accepts
-    for img in bpy.data.images:
-        path = os.path.join(TEX_RBX, os.path.basename(img.filepath))
-        if os.path.exists(path):
-            if img.packed_file:
-                img.unpack(method="REMOVE")
-            img.filepath = path
-            img.reload()
     bpy.ops.export_scene.fbx(
         filepath=os.path.join(a.out, "StandIn.fbx"), object_types={"ARMATURE", "MESH"}, use_mesh_modifiers=False,
         add_leaf_bones=False, bake_anim=False, axis_forward="-Z", axis_up="Y", apply_scale_options="FBX_SCALE_UNITS",
@@ -55,6 +46,12 @@ def main():
     )
     bpy.ops.file.pack_all()
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.abspath(a.out), "StandIn_Roblox.blend"))
+    tex = os.path.normpath(os.path.join(HERE, "..", "textures"))
+    rbx = os.path.join(tex, "roblox")
+    os.makedirs(rbx, exist_ok=True)
+    for f in os.listdir(os.path.join(tex, "baked")):
+        shutil.copy(os.path.join(tex, "baked", f), os.path.join(rbx, f))
+    shutil.copy(os.path.join(tex, "screen_nosignal.png"), os.path.join(rbx, "screen_nosignal.png"))
     print(f"exported to {a.out}: {a.height_studs:.2f} studs tall (x{scale:.3f}), pelvis {pelvis:.2f} studs up")
 
 
