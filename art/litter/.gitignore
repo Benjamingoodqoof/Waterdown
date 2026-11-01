@@ -1,4 +1,4 @@
 __pycache__/
 renders/_rom/
-renders/animations/_*/
+renders/animations/**/_*/
 *.blend1
