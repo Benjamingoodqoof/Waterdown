@@ -166,6 +166,13 @@ imported (7.8 studs, origin at the pelvis). Pick an action on `StandIn_Rig` and 
 your plugin. Only `LowerTorso` has translation keys (the bob and sway); every other bone is
 rotation only.
 
+## Kill
+
+`export/StandIn_Kill.fbx` (this monster) and `export/StandIn_Kill_Victim.rbxmx` (the R6 player
+it kills, as a Roblox KeyframeSequence) play together: Broadcast: he grips the player's head like his own monitor and holds their face up to his screen, then drops them. 4 s, one-shot, with named
+markers for the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to line
+the two up, play them and lock the camera to the player's head.
+
 ## Rig
 
 40 bones. The limb bones run along the limbs, so they're easy to animate in Blender:

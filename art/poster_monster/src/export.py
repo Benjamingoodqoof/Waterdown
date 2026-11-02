@@ -89,7 +89,7 @@ def main():
                mesh_smooth_type="FACE", use_armature_deform_only=False, primary_bone_axis="Y",
                secondary_bone_axis="X", armature_nodetype="NULL")
     bpy.ops.export_scene.fbx(filepath=os.path.join(a.out, "PosterMonster.fbx"), bake_anim=False, **fbx)
-    actions = [act for act in bpy.data.actions if act.name in ("Idle", "Walk", "Run")]
+    actions = [act for act in bpy.data.actions if act.name in ("Idle", "Walk", "Run", "Kill")]
     sc = bpy.context.scene
     for act in actions:
         rig.animation_data.action = act

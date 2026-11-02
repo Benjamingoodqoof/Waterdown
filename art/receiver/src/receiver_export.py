@@ -39,7 +39,7 @@ def main():
         pb.location = (0, 0, 0)
         pb.scale = (1, 1, 1)
     scale, pelvis = to_roblox_units(rig, a.height_studs)
-    acts = A.export_actions(rig, a.out, "Receiver", names=("Idle", "Walk", "Run", "CallStart", "CallLoop"))
+    acts = A.export_actions(rig, a.out, "Receiver", names=("Idle", "Walk", "Run", "CallStart", "CallLoop", "Kill"))
     print(f"exported to {a.out}: {a.height_studs:.2f} studs tall (x{scale:.3f}), pelvis {pelvis:.2f} studs up; "
           f"animations: {', '.join(acts)}")
 

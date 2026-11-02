@@ -26,7 +26,7 @@ from export import to_roblox_units  # noqa: E402
 STUDS_PER_M = 8.0 / (9 * 0.3048)
 
 
-def export(blend, rig_name, base, out):
+def export(blend, rig_name, base, out, names=("Idle", "Walk", "Run")):
     bpy.ops.wm.open_mainfile(filepath=blend)
     rig = bpy.data.objects[rig_name]
     rig.animation_data_create()
@@ -39,7 +39,7 @@ def export(blend, rig_name, base, out):
     zs = [v.co.z for o in bpy.data.objects if o.type == "MESH" for v in o.data.vertices]
     height = (max(zs) - min(zs)) * STUDS_PER_M
     scale, pelvis = to_roblox_units(rig, height)
-    acts = A.export_actions(rig, out, base)
+    acts = A.export_actions(rig, out, base, names)
     print(f"{base}: {height:.2f} studs tall, root {pelvis:.2f} studs up; animations: {', '.join(acts)}")
 
 
@@ -50,7 +50,7 @@ def main():
     a = ap.parse_args()
     root, out = os.path.abspath(a.litter), os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
-    export(os.path.join(root, "stack.blend"), "Stack_Rig", "Stack", out)
+    export(os.path.join(root, "stack.blend"), "Stack_Rig", "Stack", out, ("Idle", "Walk", "Run", "Kill"))
     export(os.path.join(root, "litterling.blend"), "Litterling_Rig", "Litterling", out)
     tex = os.path.join(root, "textures")
     rbx = os.path.join(tex, "roblox")

@@ -119,6 +119,13 @@ model you imported (8 studs, origin at the pelvis). Pick an action on
 `PosterMonster_Rig` and export it with your plugin. Only `LowerTorso` has translation keys
 (the bob and sway); every other bone is rotation only.
 
+## Kill
+
+`export/PosterMonster_Kill.fbx` (this monster) and `export/PosterMonster_Kill_Victim.rbxmx` (the R6 player
+it kills, as a Roblox KeyframeSequence) play together: Close-up into Poster wrap: he clamps his claws on the player's shoulders, bends down until his cracked mask fills their view, then pulls them into his chest. 4 s, one-shot, with named
+markers for the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to line
+the two up, play them and lock the camera to the player's head.
+
 ## Rig
 
 - **Root:** `Root` → `HumanoidRootNode` → `LowerTorso`, both at the pelvis, the bone layout

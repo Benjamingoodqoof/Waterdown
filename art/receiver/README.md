@@ -226,6 +226,13 @@ imported (7.1 studs, origin at the pelvis). Pick an action on `Receiver_Rig` and
 your plugin. Only `LowerTorso` has translation keys (the bob and sway); every other bone is
 rotation only.
 
+## Kill
+
+`export/Receiver_Kill.fbx` (this monster) and `export/Receiver_Kill_Victim.rbxmx` (the R6 player
+it kills, as a Roblox KeyframeSequence) play together: Hold the line into Dial: he lifts the player to his face, presses the handset to their ear and turns his dial socket right up to their face while his chest dial dials. 4 s, one-shot, with named
+markers for the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to line
+the two up, play them and lock the camera to the player's head.
+
 ## Rig
 
 38 bones. The limb bones run along the limbs, so they're easy to animate in Blender:

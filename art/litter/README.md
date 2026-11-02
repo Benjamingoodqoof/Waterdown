@@ -227,6 +227,13 @@ stack's run.
 `Stack_Rig` or `Litterling_Rig` and export it with your plugin. Only `LowerTorso` (the stack)
 and `Body` (the litterling) have translation keys; every other bone is rotation only.
 
+## Kill
+
+`export/Stack_Kill.fbx` (this monster) and `export/Stack_Kill_Victim.rbxmx` (the R6 player
+it kills, as a Roblox KeyframeSequence) play together: Pulled in: the stack's arm stretches out, grabs the player and drags them, tug by tug, into its body. 4 s, one-shot, with named
+markers for the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to line
+the two up, play them and lock the camera to the player's head.
+
 ## Rig
 
 **Stack:** 67 bones.
