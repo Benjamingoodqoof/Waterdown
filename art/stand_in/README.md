@@ -143,22 +143,23 @@ loops loop seamlessly (the last frame equals the first); `Transform` plays once 
 `TransformLoop`'s first frame. The legs, and the hands on the monitor, were solved with IK
 while animating, so planted feet don't slide and his grip stays on the monitor, then written
 out as plain rotation keys, so nothing needs a constraint or a special exporter. He walks
-"slow, stooped", a tall man with too-long limbs, but when he runs, he sprints.
+"slow, stooped", a tall man with too-long limbs; when he chases, he straightens up and comes
+at you in long, unhurried-looking strides that are faster than they look.
 
 | Action | Length | Loop | Feel |
 |---|---|---|---|
 | `Idle` | 120 frames (4 s) | yes | Stooped and still, swaying a little; the monitor drifts and tips as if he's watching you; his long fingers slowly curl and uncurl, one hand then the other |
 | `Walk` | 48 frames (1.6 s) | yes | Long, slow, stooped strides; the arms hang and barely swing |
-| `Run` | 22 frames (0.73 s) | yes | A long-legged sprint (after the run reference), leaning in: the knees drive high and the heels kick up behind; the arms pump with the elbows bent, crossing in toward the chest as they come forward and swinging back past the hip, the shoulders twisting against the hips; the wrists and long fingers flop a beat behind; the monitor stays on target and the cable is flung out behind him |
+| `Run` | 26 frames (0.87 s) | yes | A tall, upright, relentless stride, like the Thin Man's in Little Nightmares 2: he barely leans, his chest up and the monitor locked dead on you, tipped a little to one side; his long legs eat the ground in huge, smooth strides with almost no bounce; his arms hang long and nearly straight at his sides, swinging only a little and slightly late, like dead weight, the long fingers spread and half curled |
 | `Transform` | 60 frames (2 s) | no | He stiffens and straightens, then both hands fly up and clamp onto the sides of his monitor; it jolts down in his grip and he hunches over it, wrenching it side to side |
 | `TransformLoop` | 60 frames (2 s) | yes | The wrenching hold: the monitor shaking in his hands and twisted side to side, his body heaving and trembling, his fingers clenching |
 
 **Matching speed:** the feet are matched to these ground speeds. At other WalkSpeeds, scale
-the track speed to match, for example `track:AdjustSpeed(humanoid.WalkSpeed / 15)` for the
+the track speed to match, for example `track:AdjustSpeed(humanoid.WalkSpeed / 14.1)` for the
 run.
 
 - **Walk:** 3.3 studs/s
-- **Run:** 15 studs/s
+- **Run:** 14.1 studs/s
 
 **Exporting them yourself:** open `export/StandIn_Roblox.blend`. It matches the model you
 imported (7.8 studs, origin at the pelvis). Pick an action on `StandIn_Rig` and export it with

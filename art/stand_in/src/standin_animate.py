@@ -5,9 +5,9 @@ stooped": a tall man with too-long limbs who doesn't quite know how to use them.
 - Idle: stooped and still, swaying a little, the monitor drifting and tipping as if he's
   watching you, his long fingers slowly curling and uncurling.
 - Walk: long, slow strides, stooped, the arms hanging and barely swinging.
-- Run: a long-legged sprint, leaning in: the arms pump with bent elbows, crossing in toward
-  the chest and swinging out past the hip, the shoulders twisting against the hips, the wrists
-  and fingers flopping a beat behind.
+- Run: a tall, upright, relentless stride like the Thin Man's in Little Nightmares 2: huge
+  smooth strides, the monitor locked on you, the long arms hanging nearly straight and
+  swinging only a little, fingers spread and half curled.
 - Transform (one-shot): he grabs both sides of his monitor and wrenches at it; the game plays
   its glitch effects over it, then swaps him for the copied player.
 - TransformLoop: the wrenching, shaking hold, to loop for as long as the glitch lasts.
@@ -71,7 +71,7 @@ def idle(an, phi, f):
     A.biped_legs(an, 0.0, 1.0, 0.0, 0.0, splay=0.06)
 
 
-WALK_T, RUN_T = 48, 22
+WALK_T, RUN_T = 48, 26
 
 
 def walk(an, phi, f):
@@ -97,28 +97,29 @@ def walk(an, phi, f):
 
 
 def run(an, phi, f):
-    """A long-legged sprint, after the run reference: leaning in, the knees driving high and the
-    heels kicking up behind; the arms pump with the elbows bent, crossing in toward the chest as
-    they come forward and swinging out past the hip as they go back, the shoulders twisting
-    against the hips. The wrists and long fingers flop a beat behind, a little too loose."""
-    duty, stride = 0.42, 1.6
+    """A tall, upright, relentless stride, like the Thin Man's in Little Nightmares 2: he barely
+    leans, his chest up and the monitor locked dead on you, tipped a little to one side; his long
+    legs eat the ground in huge, smooth strides with almost no bounce. His arms hang long and
+    nearly straight at his sides, swinging only a little and slightly late, like dead weight,
+    the long fingers spread and half curled, reaching."""
+    duty, stride = 0.46, 1.95
     tw = cwave(phi)  # +1 when the left leg is forward
     pose = {
-        "LowerTorso": [("x", 9 + 2 * cwave(phi, 2, -0.25)), ("y", -3 * wave(phi, 1, -0.1)), ("z", -9 * tw)],
-        "UpperTorso": [("x", 13 + 3 * cwave(phi, 2, -0.3)), ("y", 2 * wave(phi, 1, -0.05)), ("z", 20 * tw)],
-        # the monitor stays on target, turning against the shoulders and nodding a beat late
-        "Head": [("x", -9 + 3 * cwave(phi, 2, -0.4)), ("z", -10 * cwave(phi, 1, -0.06))],
+        "LowerTorso": [("x", 3 + cwave(phi, 2, -0.25)), ("y", -2 * wave(phi, 1, -0.1)), ("z", -7 * tw)],
+        "UpperTorso": [("x", 7 + cwave(phi, 2, -0.3)), ("y", 1.5 * wave(phi, 1, -0.05)), ("z", 9 * tw)],
+        # the monitor holds still on its target whatever the body does, tipped to one side
+        "Head": [("x", 6 + 0.8 * cwave(phi, 2, -0.35)), ("y", -7), ("z", -2 * cwave(phi, 1, -0.05))],
     }
-    for side, peak in (("Left", 0.53), ("Right", 0.03)):
-        pose.update(A.arm_swing(side, phi, peak, fwd=40, back=58, elbow=70, elbow_amp=20, adduct=6, adduct_amp=8,
-                                twist=10, twist_amp=18, lag=(0.05, 0.15), hand=2, hand_amp=12, lean=22))
-        pose.update(fingers(side, 9 + 7 * (0.5 + 0.5 * cwave(phi, 1, -(peak + 0.22))), phi, 0))
-    pose.update(cable(phi, 8, 10, 0.08))
-    pose["Cable1"].append(("x", 28))  # flung out behind him
-    pose["Cable2"].append(("x", 12))
-    bob = -0.07 - 0.045 * cwave(phi, 2, -0.21)  # lowest mid-stance, highest in the air
-    an.fk(pose, {"LowerTorso": (0.012 * wave(phi, 1, 0.06), 0.0, bob)})
-    A.biped_legs(an, phi, duty, stride, 0.36, 24, 0.06, 0.0, skew=0.7)
+    for side, peak in (("Left", 0.56), ("Right", 0.06)):
+        pose.update(A.arm_swing(side, phi, peak, fwd=12, back=20, elbow=10, elbow_amp=6, adduct=-3, adduct_amp=2,
+                                twist=4, twist_amp=4, lag=(0.08, 0.16), hand=4, hand_amp=6, lean=10))
+        pose.update(fingers(side, 16 + 4 * (0.5 + 0.5 * cwave(phi, 1, -(peak + 0.2))), phi, 0))
+    pose.update(cable(phi, 6, 7, 0.08))
+    pose["Cable1"].append(("x", 16))  # trailing behind him
+    pose["Cable2"].append(("x", 6))
+    bob = -0.06 - 0.018 * cwave(phi, 2, -0.23)  # a smooth glide, hardly rising and falling
+    an.fk(pose, {"LowerTorso": (0.01 * wave(phi, 1, 0.06), 0.0, bob)})
+    A.biped_legs(an, phi, duty, stride, 0.24, 18, 0.05, 0.0, skew=0.8)
     SPEEDS["Run"] = stride / (duty * RUN_T / A.FPS)
 
 
