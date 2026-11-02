@@ -154,6 +154,7 @@ def place_left_hand(an, M, pole):
     m.translation = an.pb["LeftLowerArm"].tail.copy()
     hand.matrix = m
     hand.location = (0, 0, 0)
+    hand.scale = (1, 1, 1)
 
 
 CALL_POLE = Vector((0.6, 0.25, -0.75))  # the elbow out, down and back

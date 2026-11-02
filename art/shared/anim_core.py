@@ -143,6 +143,7 @@ class Animator:
             pb.rotation_mode = "QUATERNION"
             pb.rotation_quaternion = (1, 0, 0, 0)
             pb.location = (0, 0, 0)
+            pb.scale = (1, 1, 1)  # setting pose matrices leaves rounding in the scale; never let it build up
 
     def fk(self, pose, loc=None):
         """pose: {bone: [(axis, degrees), ...]}; loc: {bone: world-space offset}."""
@@ -165,6 +166,7 @@ class Animator:
         out.translation = M.translation
         pb.matrix = out
         pb.location = (0, 0, 0)
+        pb.scale = (1, 1, 1)
         bpy.context.view_layer.update()
 
     def two_bone(self, upper, lower, target, pole):
@@ -195,6 +197,7 @@ class Animator:
         rot.translation = self.pb[f"{side}LowerLeg"].tail.copy()
         ft.matrix = rot
         ft.location = (0, 0, 0)
+        ft.scale = (1, 1, 1)
 
     def rest_delta(self, name):
         """The posed bone's transform relative to its rest (armature space): maps a point on the
@@ -220,6 +223,7 @@ class Animator:
         m.translation = pb.matrix.translation.copy()
         pb.matrix = m
         pb.location = (0, 0, 0)
+        pb.scale = (1, 1, 1)
         bpy.context.view_layer.update()
 
     def key(self, frame):
