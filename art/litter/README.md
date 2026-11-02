@@ -229,10 +229,10 @@ and `Body` (the litterling) have translation keys; every other bone is rotation 
 
 ## Kill
 
-`export/Stack_Kill.fbx` (this monster) and `export/Stack_Kill_Victim.rbxmx` (the R6 player
-it kills, as a Roblox KeyframeSequence) play together: Pulled in: the stack's arm stretches out, grabs the player and drags them, tug by tug, into its body. 4 s, one-shot, with named
-markers for the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to line
-the two up, play them and lock the camera to the player's head.
+`export/Stack_Kill.fbx` (this monster) and `export/Stack_Kill_Victim.blend` (the R6 player it
+kills, keyed on your R6 rig) play together: Pulled in: its arm stretches out, yanks the player face down, drags them in across the floor, then hauls them up to its head creature's mouth and pulls them into its body. 4 s, one-shot, with timeline markers for
+the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
+half, line the two up, play them and lock the camera to the player's head.
 
 ## Rig
 

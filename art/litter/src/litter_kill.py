@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""The stack's kill, "Pulled in": it rears up, then its right arm shoots out, stretching as
-the creatures in it spread apart, and its hand closes on the player's chest. It drags them
-in, tug by tug (the window for a teammate's light to save them), with its head creature's
-open mouth turned on them, then yanks them face first into its body, through the wall of
-small black bodies and eyes, and closes its other arm over them while the whole pile writhes.
+"""The stack's kill, "Pulled in": it rears up, its creatures squirming, and its right arm
+shoots out, stretching as the creatures in it spread apart. The hand clamps on the player and
+yanks them off their feet, face down on the floor. It drags them in across the floor, tug by
+tug (the window for a teammate's light to save them), then hauls them up to its head creature's
+open mouth and pulls them face first into its body, through the wall of small black bodies
+and eyes, closing its other arm over them while the whole pile writhes.
 
-Writes the stack's "Kill" action into stack.blend, and the player's half as an R6
-KeyframeSequence (export/Stack_Kill_Victim.rbxmx). Both are 4 s and start together, with the
-player's HumanoidRootPart DISTANCE studs in front of the stack's, facing it.
+Writes the stack's "Kill" action into stack.blend, and the player's half on the R6 rig
+(export/Stack_Kill_Victim.blend). Both are 4 s and start together, with the player's
+HumanoidRootPart DISTANCE studs in front of the stack's, facing it.
 
-Markers (KeyframeReached on the player's track): Notice 0, Grab 26 (the save window opens),
-Yank 58 (it closes), Black 70 (the camera is inside the stack), End 120.
+Markers: Grab 14 (the save window opens), Floor 22 (they hit the floor), Tug 32, 42 and 52,
+Lift 58 (the window closes), Mouth 66, Black 74 (the camera is inside the stack), End 120.
 
 Usage: python3 litter_kill.py LITTER_DIR PREVIEW_BLEND
 """
@@ -33,128 +34,149 @@ HEIGHT_M, HEIGHT_STUDS = 2.661, 10.0
 KM = HEIGHT_M / HEIGHT_STUDS
 DISTANCE = 4.8
 LENGTH = 120
-GRAB, YANK, IN = 26, 58, 70
-MARKERS = {0: "Notice", GRAB: "Grab", YANK: "Yank", IN: "Black", LENGTH: "End"}
+GRAB, FLOOR, TUGS, LIFT, MOUTH, IN = 14, 22, (32, 42, 52), 58, 66, 74
+MARKERS = {0: "Notice", GRAB: "Grab", FLOOR: "Floor", 32: "Tug", 42: "Tug", 52: "Tug", LIFT: "Lift", MOUTH: "Mouth",
+           IN: "Black", LENGTH: "End"}
 SIDES = (("Left", 1.0), ("Right", -1.0))
-CHEST_IN = Vector((0.0, 0.0, 1.66))  # the middle of its body, at rest: where their head ends up  # inside the torso, at rest
+CHEST_IN = Vector((0.0, 0.0, 1.66))  # the middle of its body, at rest
+MOUTH_FRONT = Vector((0.0, -0.72, 2.2))  # just in front of the head creature's mouth, at rest
 LOC = ("LowerTorso", "RightLowerArm", "RightHand")
+HITS = (GRAB, FLOOR) + TUGS
 
 
-def tug(f):
-    """The drag: three pulls, each a quick tug and a pause, then the yank."""
-    out = 0.0
-    for i, s0 in enumerate((30, 40, 50)):
-        out += ss(s0, s0 + 4, f) / 3.0
-    return out
+def prone(z):
+    """Face down on the floor, head toward the stack, their torso's middle at z (studs)."""
+    return Matrix.Translation((0.0, -2.2, z)) @ K.rot("X", -68)  # chest up off the floor, clawing
+
+
+def drag_z(f):
+    """How far in they've been dragged: three tugs, each a sharp pull, then a pause."""
+    z = -1.0
+    for t in TUGS:
+        if f > t - 3:
+            z -= 0.45 * K.back_out((f - (t - 3)) / 4, 1.2)
+    return z
 
 
 def monster_body(an, f):
-    rear = A.bump(f, 0, 8, 18)
-    lunge = ss(10, 22, f)
-    drag = ss(GRAB, YANK, f)
-    yank = ss(YANK, IN, f)
-    pulse = sum(A.bump(f, s0, s0 + 2, s0 + 8) for s0 in (30, 40, 50))
-    writhe = ss(IN - 6, IN + 4, f)
+    rear = A.bump(f, 0, 6, 12)
+    shoot = ss(6, GRAB, f)
+    pulse = sum(A.bump(f, t - 3, t, t + 6) for t in TUGS)
+    lift = ss(LIFT, MOUTH, f)
+    yank = ss(MOUTH, IN, f)
+    writhe = ss(IN - 4, IN + 6, f)
+    lunge_mouth = window(f, LIFT, MOUTH, IN - 2, IN + 6)
     pose = {
-        "LowerTorso": [("x", 6 + 10 * lunge - 6 * yank - 6 * rear), ("z", 6 * lunge * (1 - yank))],
-        "UpperTorso": [("x", 10 - 14 * rear + 14 * lunge - 6 * drag + 3 * pulse + 16 * writhe + 3 * math.sin(f / 5) * writhe),
-                       ("z", 10 * lunge * (1 - yank))],
-        "Head": [("x", -18 * rear - 10 * lunge + 6 * writhe), ("z", -8 * lunge * (1 - writhe))],
-        # the open-mouthed head creature turns on the player as it drags them in
-        "Slot_Head1": [("x", -20 * drag * (1 - writhe)), ("y", 10 * math.sin(f / 6) * drag * (1 - writhe))],
-        "LeftUpperArm": A.mirror([("x", -20 * rear), ("y", -40 * rear)], "Left"),
+        "LowerTorso": [("x", 6 + 14 * shoot * (1 - lift) - 6 * rear + 4 * pulse - 6 * yank), ("z", 8 * shoot * (1 - lift))],
+        "UpperTorso": [("x", 10 - 16 * rear + 18 * shoot * (1 - lift) + 6 * pulse - 10 * lift + 18 * writhe
+                        + 3 * math.sin(f / 4) * writhe), ("z", 14 * shoot * (1 - lift) - 6 * pulse)],
+        "Head": [("x", -20 * rear - 14 * shoot * (1 - lift) + 18 * lift), ("z", -8 * shoot * (1 - writhe))],
+        # the open-mouthed head creature lunges at them as they're hauled up
+        "Slot_Head1": [("x", -24 * lunge_mouth + 8 * math.sin(f / 3.0) * lunge_mouth), ("y", 12 * math.sin(f / 5) * (1 - writhe))],
+        "LeftUpperArm": A.mirror([("x", -24 * rear), ("y", -45 * rear)], "Left"),
     }
-    # every creature in the pile shifts and looks about, and writhes once the player is inside
-    pose.update(LA.creatures(f / 40.0, 4.0 + 10 * writhe + 5 * yank, hits=(), look=10 + 30 * writhe))
-    an.fk(pose, {"LowerTorso": (0.0, -0.3 * lunge + 0.12 * yank, -0.05 * lunge - 0.06 * writhe)})
-    step = ss(10, 20, f)
+    pose.update(LA.creatures(f / 40.0, 4.0 + 4 * pulse + 14 * writhe + 6 * yank, hits=(), look=12 + 30 * writhe))
+    an.fk(pose, {"LowerTorso": (0.0, -0.2 * shoot * (1 - lift) + 0.08 * yank, -0.06 * shoot - 0.08 * writhe)})
+    step = ss(6, 12, f)
     for side, sx in SIDES:
         rest = an.pb[f"{side}Foot"].bone.head_local
-        off = Vector((0, -0.4 * step, 0.12 * math.sin(math.pi * step))) if side == "Right" else Vector((0, -0.06 * step, 0))
+        off = Vector((0, -0.3 * step, 0.12 * math.sin(math.pi * step))) if side == "Right" else Vector((0, -0.05 * step, 0))
         an.leg(side, rest + off, 0.0, 0.14 * sx)
 
 
-def victim_start(f, ctx):
+def victim(an, ctx, f):
+    pl = ctx["pl"]
     v = K.Victim()
-    K.recoil(v, f, 4, 18, ctx.get("look"), (10, 22))
+    head_c = pl.point_to_victim(an.pb["Slot_Head1"].matrix.translation)
+    if f <= GRAB:
+        K.recoil(v, f, 1, 8, head_c, (4, 10))
+        ctx["grab_torso"] = v.torso.copy()
+        K.jolt_head(v, f, HITS, 12)
+        return v
+    if f <= FLOOR:  # yanked forward off their feet, face down
+        t = (f - GRAB) / (FLOOR - GRAB)
+        v.torso = K.blend_cf(ctx["grab_torso"], prone(-1.0), t * t)
+        flail = 1.0
+    elif f <= LIFT:  # dragged in across the floor
+        v.torso = prone(drag_z(f))
+        if f < FLOOR + 5:
+            v.torso.translation.y += 0.2 * math.sin(math.pi * (f - FLOOR) / 5)
+        flail = 0.6
+    else:  # hauled up to its mouth, then pulled in, head first
+        mouth = pl.point_to_victim(an.rest_delta("Slot_Head1") @ MOUTH_FRONT)
+        inside = pl.point_to_victim(an.rest_delta("UpperTorso") @ CHEST_IN)
+        lift = K.back_out((f - LIFT) / (MOUTH - LIFT), 1.3)
+        yank = ss(MOUTH + 1, IN, f)
+        ctx.setdefault("lift_from", prone(drag_z(LIFT)))
+        pitch = 40 + 40 * yank
+        R = K.rot("X", -pitch)
+        hv = K.Victim()
+        hv.hang_from_head(Matrix.Translation(mouth.lerp(inside, yank)) @ R, R)
+        v.torso = K.blend_cf(ctx["lift_from"], hv.torso, lift) if lift < 1 else hv.torso
+        flail = 0.8 * (1 - yank)
+    # arms clawing out ahead of them (at the floor, at its arm); legs kicking
+    for arm, sx in (("Right Arm", 1), ("Left Arm", -1)):
+        reach = Vector((0.9 * sx, -0.5 + 0.4 * math.sin(f / 2.3 + sx), -0.6))  # out to the sides, clear of the view
+        v.point(arm, (v.torso.to_3x3() @ reach).normalized().lerp(Vector((0, -1, 0)), 0.2 * (1 - flail)).normalized())
+    K.kick_legs(v, f, flail * 0.8)
+    # on the floor they look along it at the body coming at them; lifted, at the head creature
+    body_c = pl.point_to_victim(an.pb["UpperTorso"].head)
+    v.look(head_c if (f <= GRAB or f > LIFT) else body_c, limit=80)
+    K.jolt_head(v, f, HITS, 14)
     return v
 
 
 def kill(an, ctx, f):
     pl = ctx["pl"]
     monster_body(an, f)
-    head_creature = an.pb["Slot_Head1"].matrix.translation.copy()
-    ctx["look"] = pl.point_to_victim(head_creature)
+    v = victim(an, ctx, f)
     T = an.rest_delta("UpperTorso")
-    if "grab_point" not in ctx:  # where its hand will close: the front of their chest, as they flinch
-        g = victim_start(GRAB, ctx)
-        ctx["grab_point"] = pl.point_to_blender(g.torso @ Vector((0, 0.3, -0.75)))
-        ctx["grab_torso"] = g.torso.copy()
-    G = ctx["grab_point"]
-    reach = ss(10, GRAB, f)
-    drag, yank = tug(f), ss(YANK, IN, f)
+    # the right hand: shoots out to their chest, then holds them by the back of the neck
     rest = T @ an.pb["RightLowerArm"].bone.tail_local
-    front = T @ Vector((-0.1, -0.9, 1.35))  # where the drag ends, low in front of it
-    inside = T @ CHEST_IN
-    pitch = 25 * drag + 35 * yank  # the player tipping toward it, then face first
-    Rv = K.rot("X", -pitch) @ K.rot("Z", 6 * math.sin(f / 3.5) * (1 - yank))
-    chest_off = Vector((0, 0.3, -0.75))
     if f <= GRAB:
-        target = rest.lerp(G, A.ease(reach)) + Vector((0, 0, 0.25)) * math.sin(math.pi * reach)
-    elif f <= YANK:
-        target = G.lerp(front, drag)
+        if "grab_point" not in ctx:
+            g = K.recoil(K.Victim(), GRAB, 1, 8)
+            ctx["grab_point"] = pl.point_to_blender(g.torso @ Vector((0, 0.3, -0.75)))
+        s = ss(6, GRAB, f)
+        target = rest.lerp(ctx["grab_point"], A.ease(s)) + Vector((0, 0, 0.2)) * math.sin(math.pi * s)
     else:
-        # yanked in until their head is in the middle of its body; the hand stays on their chest
-        if "yank_head" not in ctx:
-            vt = K.Victim()
-            vt.torso = Matrix.Translation(pl.point_to_victim(front)) @ Rv @ Matrix.Translation(-chest_off)
-            ctx["yank_head"] = vt.head_world().translation.copy()
-        hv = ctx["yank_head"].lerp(pl.point_to_victim(inside), yank)
-        vt = K.Victim()
-        vt.torso = Matrix.Translation(hv) @ Rv @ Matrix.Translation(-Vector((0, 1.5, 0)))
-        target = pl.point_to_blender(vt.torso @ chest_off)
-    # the arm: IK as far as it reaches, then stretched the rest of the way
+        target = pl.point_to_blender(v.torso @ Vector((0, 1.1, 0.4)))  # the back of their neck
     K.reach(an, "Right", target, T.to_3x3() @ Vector((-0.6, 0.3, -0.7)))
     import bpy as _b
     _b.context.view_layer.update()
     gap = (target - an.pb["RightLowerArm"].tail).length
-    stretch = min(0.9, gap) if f < IN else 0.0
+    stretch = min(1.0, gap) if f < IN else 0.0
     an.pb["RightLowerArm"].location = (0, stretch * 0.5, 0)
     an.pb["RightHand"].location = (0, stretch * 0.5, 0)
-    _b.context.view_layer.update()
-    hand = an.pb["Slot_RightArm5"].matrix.translation.copy()
-    # the left arm: spread as it rears, then closing over them once they're inside
     close = ss(IN - 4, IN + 12, f)
     if close:
-        lt = an.rest_delta("UpperTorso") @ Vector((0.05, -0.5, 1.5))
+        lt = T @ Vector((0.05, -0.5, 1.5))
         K.reach(an, "Left", an.pb["LeftLowerArm"].tail.lerp(lt, close), T.to_3x3() @ Vector((0.8, 0.2, -0.3)))
-    grip = ss(GRAB - 4, GRAB, f)
+    grip = ss(GRAB - 3, GRAB, f)
     pose = {}
     for side, _ in SIDES:
-        pose.update(K.finger_curl(an, side, (-10 + 50 * grip) if side == "Right" else (10 + 30 * close), spread=8 * (1 - grip)))
+        pose.update(K.finger_curl(an, side, (-12 + 54 * grip) if side == "Right" else (10 + 30 * close), spread=10 * (1 - grip)))
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
-    # the player
-    if f <= GRAB:
-        return victim_start(f, ctx)
-    v = K.Victim()
-    hv = pl.point_to_victim(hand)
-    v.torso = Matrix.Translation(pl.point_to_victim(target) if f > YANK else hv) @ Rv @ Matrix.Translation(-chest_off)
-    # feet dragging on the floor, then trailing
-    kick = window(f, GRAB, GRAB + 4, IN, IN + 10)
-    K.kick_legs(v, f, kick * 0.7)
-    for leg in ("Right Leg", "Left Leg"):
-        if f > YANK:
-            v.rotate(leg, K.rot("X", 20 * yank))
-    v.look(ctx["look"], limit=55)
-    K.clutch(v, pl, f, GRAB, {"Right Arm": an.pb["RightLowerArm"].tail, "Left Arm": an.pb["RightLowerArm"].tail})
     return v
 
 
+NOTE = """The Litter (stack) kill, the player's half: InternalArmature carries the action
+Stack_Kill_Victim (30 fps, frames 0-120). Its constraints to the control rig are muted so the
+keys drive it; export it with your R6 exporter as usual. The timeline markers are the beats:
+Grab (save window opens), Floor, Tug x3, Lift (window closes), Mouth, Black, End.
+The 'Monster (reference)' collection holds the stack playing its half, at your in-game size,
+lined up where the game should put it: 4.8 studs in front of the player, facing them.
+"""
+
+
 def main(litter_dir, preview):
-    K.run_kill(os.path.join(litter_dir, "stack.blend"), "Stack_Rig", LENGTH, KM, DISTANCE, kill,
-               os.path.join(litter_dir, "export", "Stack_Kill_Victim.rbxmx"), preview, "Stack_Kill_Victim", MARKERS,
-               loc_bones=LOC)
+    blend = os.path.join(litter_dir, "stack.blend")
+    ctx = K.run_kill(blend, "Stack_Rig", LENGTH, KM, DISTANCE, kill, None, preview, "Stack_Kill_Victim", MARKERS,
+                     loc_bones=LOC)
+    template = os.path.normpath(os.path.join(HERE, "..", "..", "shared", "r6", "Blender_R6.blend"))
+    K.write_r6_blend(template, os.path.join(litter_dir, "export", "Stack_Kill_Victim.blend"), ctx["parts"],
+                     "Stack_Kill_Victim", MARKERS, (blend, "Stack_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE)
     print("kill written")
 
 

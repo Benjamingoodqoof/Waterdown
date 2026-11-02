@@ -363,7 +363,10 @@ def run_kill(blend, rig_name, length, k, distance, fn, out_rbxmx, preview_blend,
     if "Idle" in bpy.data.actions:
         rig.animation_data.action = bpy.data.actions["Idle"]
     bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(blend))
-    write_keyframes(out_rbxmx, victim_name, trs, markers=markers)
+    if out_rbxmx:
+        write_keyframes(out_rbxmx, victim_name, trs, markers=markers)
+    ctx["parts"] = parts
+    ctx["root"] = root
     # the preview scene
     rig.animation_data.action = act
     obs = victim_boxes(k)
@@ -427,3 +430,117 @@ def fall(v, held_torso, f, drop, land, lying, look_at=None):
     if look_at is not None:
         v.look(look_at, roll=-20 * limp, limit=50)
     return v
+
+
+# ---------------------------------------------------------------- timing and impacts
+def back_out(t, s=1.70158):
+    """Ease out with an overshoot past 1 and back (a snap that settles)."""
+    t = min(1.0, max(0.0, t)) - 1
+    return t * t * ((s + 1) * t + s) + 1
+
+
+def shake(f, hits, amp=1.0, decay=0.22, freq=0.9):
+    """A jolt after each impact frame in hits: (pitch, yaw, roll) noise that dies away."""
+    out = Vector((0, 0, 0))
+    for h in hits:
+        if f >= h:
+            t = f - h
+            e = amp * math.exp(-decay * t)
+            out += Vector((math.sin(freq * t * 2.1 + 0.3), math.sin(freq * t * 1.7 + 1.9), math.sin(freq * t * 2.6 + 4.1))) * e
+    return out
+
+
+def jolt_head(v, f, hits, deg=12.0):
+    """Shakes the victim's head (and so a camera locked to it) after each impact."""
+    s = shake(f, hits) * deg
+    if s.length > 1e-4:
+        v.T["Head"] = v.T["Head"] @ (rot("X", s.x) @ rot("Y", s.y) @ rot("Z", s.z))
+
+
+def hang_from_limb(v, limb, point_local, at, torso_rot, limb_T=None):
+    """Places the victim so a point on `limb` (in the limb's own frame) is at `at` (HRP space),
+    the torso turned to torso_rot and the limb bent by limb_T at its joint."""
+    if limb_T is not None:
+        v.T[limb] = limb_T
+    v.torso = torso_rot.to_3x3().to_4x4()
+    p = rest_limb(v.torso, limb, v.T[limb]) @ point_local
+    v.torso = Matrix.Translation(at - p) @ v.torso
+    return v
+
+
+# ---------------------------------------------------------------- the victim on the user's R6 rig
+R6_REST = {"Torso": (0, 3, 0), "Head": (0, 4.5, 0), "Right Arm": (1.5, 3, 0), "Left Arm": (-1.5, 3, 0),
+           "Right Leg": (0.5, 1, 0), "Left Leg": (-0.5, 1, 0)}
+R6_ORDER = ("Torso", "Head", "Right Arm", "Left Arm", "Right Leg", "Left Leg")
+
+
+def write_r6_blend(template, out_blend, parts_frames, action_name, markers, monster=None, note=""):
+    """Keys the victim onto the R6 rig in `template` (a copy of the user's Blender_R6.blend: its
+    InternalArmature has a bone per R6 part, in studs, facing +Y) and saves it as out_blend at
+    30 fps. The InternalArmature's constraints to the control rig are muted, so the keys drive
+    it directly. monster: (blend, rig name, action, k, distance, root) appends the monster,
+    scaled to studs and playing its kill, as a reference in its own collection."""
+    import anim_core as A
+    bpy.ops.wm.open_mainfile(filepath=os.path.abspath(template))
+    sc = bpy.context.scene
+    sc.render.fps = FPS
+    sc.frame_start, sc.frame_end = 0, len(parts_frames) - 1
+    arm = bpy.data.objects["InternalArmature"]
+    for pb in arm.pose.bones:
+        for c in pb.constraints:
+            c.mute = True
+        pb.rotation_mode = "QUATERNION"
+    ctrl = bpy.data.objects.get("__PrimaryArmature")
+    if ctrl:
+        ctrl.hide_set(True)
+    arm.animation_data_create()
+    old = bpy.data.actions.get(action_name)
+    if old:
+        bpy.data.actions.remove(old)
+    act = bpy.data.actions.new(action_name)
+    act.use_fake_user = True
+    arm.animation_data.action = act
+    prev = {}
+    for f, parts in enumerate(parts_frames):
+        arm.pose.bones["HumanoidRootPart"].matrix_basis = Matrix.Identity(4)
+        bpy.context.view_layer.update()
+        for name in R6_ORDER:
+            pb = arm.pose.bones[name]
+            cur = Matrix.Translation((0, 3, 0)) @ parts[name]
+            D = AXES @ cur @ Matrix.Translation(R6_REST[name]).inverted() @ AXES.inverted()
+            pb.matrix = D @ pb.bone.matrix_local
+            pb.scale = (1, 1, 1)
+            bpy.context.view_layer.update()
+        for pb in arm.pose.bones:
+            q = pb.rotation_quaternion.copy()
+            if pb.name in prev and prev[pb.name].dot(q) < 0:
+                q.negate()
+                pb.rotation_quaternion = q
+            prev[pb.name] = q.copy()
+            pb.keyframe_insert("rotation_quaternion", frame=f, group=pb.name)
+            pb.keyframe_insert("location", frame=f, group=pb.name)
+    for f, name in (markers or {}).items():
+        m = sc.timeline_markers.new(name, frame=f)
+        m.select = False
+    act.use_frame_range = True
+    act.frame_start, act.frame_end = 0, len(parts_frames) - 1
+    if monster:
+        mblend, rig_name, maction, k, distance, root = monster
+        with bpy.data.libraries.load(os.path.abspath(mblend), link=False) as (src, dst):
+            dst.objects = list(src.objects)
+            dst.actions = [a for a in src.actions if a == maction]
+        col = bpy.data.collections.new("Monster (reference)")
+        sc.collection.children.link(col)
+        rig = None
+        for o in dst.objects:
+            if o is None:
+                continue
+            col.objects.link(o)
+            if o.type == "ARMATURE" and o.name.startswith(rig_name):
+                rig = o
+        rig.animation_data_create()
+        rig.animation_data.action = dst.actions[0]
+        rig.matrix_world = Matrix.Scale(1.0 / k, 4) @ Matrix.Translation(-Vector((root.x, root.y - distance * k, 0.0)))
+    txt = bpy.data.texts.new("KILL_README")
+    txt.write(note)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(out_blend))

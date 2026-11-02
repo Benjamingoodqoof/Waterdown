@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""The Receiver's kill, "Hold the line" into "Dial": he lunges, grabs the player round the
-chest with his claw and lifts them to his face. He presses his handset to their ear, turns
-the empty dial socket in his phone head right up to their face, and the dial in his chest
-dials and dials. Then his head drives into theirs and he drops them.
+"""The Receiver's kill, "Hang up": his phone head snaps round, he lunges and seizes the player
+by the throat with his claw, lifts them and slams them down on their back. He crouches over
+them, pinning them, the phone head hanging over their face with its dirty water sloshing, and
+holds the handset to their ear while the dial in his chest dials, digit after digit. Then he
+raises the handset high and slams it down on their face, like hanging up a phone.
 
-Writes the Receiver's "Kill" action into the blend, and the player's half as an R6
-KeyframeSequence (export/Receiver_Kill_Victim.rbxmx). Both are 4 s and start together, with the
-player's HumanoidRootPart DISTANCE studs in front of his, facing him.
+Writes the Receiver's "Kill" action into the blend, and the player's half on the R6 rig
+(export/Receiver_Kill_Victim.blend). Both are 4 s and start together, with the player's
+HumanoidRootPart DISTANCE studs in front of his, facing him.
 
-Markers (KeyframeReached on the player's track): Notice 0, Grab 24, Handset 46 (play the
-player's voice line, crackly), DialStart 58 (QTE starts), DialEnd 98 (busy signal; QTE ends),
-Black 104 (his head hits the camera), Drop 106, End 120.
+Markers: Grab 12, Slammed 26 (they hit the floor), Handset 44 (play their voice line,
+crackly), DialStart 48 (QTE starts), DialEnd 86 (QTE ends), HangUp 98 (the handset hits the
+camera: dial tone, black), End 120.
 
 Usage: python3 receiver_kill.py BLEND EXPORT_DIR PREVIEW_BLEND
 """
@@ -33,17 +34,19 @@ HEIGHT_M, HEIGHT_STUDS = 2.2825, 10.0
 KM = HEIGHT_M / HEIGHT_STUDS
 DISTANCE = 4.5
 LENGTH = 120
-GRAB, LIFTED, HANDSET, DIAL, DIAL_END, HIT, DROP, LAND = 24, 44, 46, 58, 98, 104, 106, 116
-MARKERS = {0: "Notice", GRAB: "Grab", HANDSET: "Handset", DIAL: "DialStart", DIAL_END: "DialEnd", HIT: "Black",
-           DROP: "Drop", LENGTH: "End"}
-SOCKET = Vector((0.0, -0.43, 2.11))  # the mouth of the dial socket in his phone head, at rest
+GRAB, LIFT, SLAM, OVER, HANDSET, DIAL, DIAL_END, RAISE, HANG = 12, 18, 26, 38, 44, 48, 86, 92, 98
+MARKERS = {0: "Notice", GRAB: "Grab", SLAM: "Slammed", HANDSET: "Handset", DIAL: "DialStart", DIAL_END: "DialEnd",
+           HANG: "HangUp", LENGTH: "End"}
+SOCKET = Vector((0.0, -0.43, 2.11))
 SIDES = (("Left", 1.0), ("Right", -1.0))
+HITS = (GRAB, SLAM, HANG)
+LYING = Matrix.Translation((0.0, -2.5, -2.2)) @ K.rot("X", 90)  # on their back, head away from him
 
 
 def dial(t):
-    """His chest dial dialling fast, digit after digit: each pulled round to the stop in 5
-    frames and whirring back at 20 degrees a frame (every pull ends back at rest)."""
-    for pull in (270, 120, 300, 90, 210):
+    """His chest dial dialling fast: each digit pulled round in 5 frames and whirring back at
+    20 degrees a frame."""
+    for pull in (270, 120, 300, 90, 210, 180):
         back = pull / 20.0
         span = 5 + 1 + back + 2
         if t < 0:
@@ -59,25 +62,32 @@ def dial(t):
 
 
 def monster_body(an, f):
-    snap = A.bump(f, 0, 5, 14)  # the head snaps round to the player
-    lunge = ss(8, 22, f)
-    hold = ss(GRAB, LIFTED, f)
-    hit = A.bump(f, 99, 103, 110)
-    drop = ss(DROP, LAND, f)
+    snap = A.bump(f, 0, 3, 10)
+    lunge = ss(4, GRAB, f) * (1 - ss(SLAM, OVER, f))
+    lift = A.bump(f, GRAB, LIFT, SLAM)
+    slam = ss(LIFT, SLAM, f)
+    over = ss(SLAM, OVER, f)
+    raise_ = A.bump(f, DIAL_END, RAISE, HANG)
+    hang = A.bump(f, RAISE, HANG, HANG + 10)
     pose = {
-        "LowerTorso": [("x", 6 + 14 * lunge - 8 * hold), ("y", 4 * snap)],
-        "UpperTorso": [("x", 6 + 18 * lunge - 10 * hold + 14 * hit), ("z", -6 * hold)],
-        # the head comes level with the player's face, the socket turned to them; it drives in
-        "Head": [("x", -6 - 8 * lunge + 14 * hold + 16 * hit - 10 * drop), ("y", -14 * snap + 8 * window(f, 60, 70, 88, 98)),
-                 ("z", 6 * snap)],
-        "DialSpin": [("ly", dial(f - DIAL))],
+        "LowerTorso": [("x", 6 + 20 * lunge - 6 * lift + 26 * slam * (1 - over) + 38 * over - 8 * raise_ + 10 * hang)],
+        "UpperTorso": [("x", 6 + 16 * lunge - 10 * lift + 24 * slam * (1 - over) + 40 * over - 14 * raise_ + 16 * hang),
+                       ("z", -10 * lift + 14 * slam * (1 - over) - 8 * raise_), ("y", 6 * over * math.sin(f / 11.0))],
+        # the phone head hangs over their face; it rears back as the handset goes up
+        "Head": [("x", -16 * snap - 10 * lunge + 34 * over - 18 * raise_ + 14 * hang + 4 * math.sin(f / 6.0) * over),
+                 ("y", -18 * snap + 10 * window(f, DIAL, DIAL + 6, DIAL_END - 6, DIAL_END) * math.sin(f / 12.0)),
+                 ("z", 8 * snap)],
+        "DialSpin": [("ly", dial(f - DIAL) if f >= DIAL else 0.0)],
     }
-    an.fk(pose, {"LowerTorso": (0.0, -0.3 * lunge + 0.05 * hold - 0.16 * hit, -0.1 * lunge + 0.05 * hold)})
-    step = ss(8, 20, f)
+    an.fk(pose, {"LowerTorso": (0.0, -0.3 * lunge - 0.3 * over, -0.1 * lunge + 0.08 * lift - 0.42 * over)})
+    step = ss(4, 10, f)
     for side, sx in SIDES:
         rest = an.pb[f"{side}Foot"].bone.head_local
-        off = Vector((0, -0.42 * step, 0.12 * math.sin(math.pi * step))) if side == "Right" else Vector((0, -0.08 * step, 0))
-        an.leg(side, rest + off, 0.0, 0.12 * sx)
+        if side == "Right":
+            off = Vector((0, -0.45 * step - 0.15 * over, 0.14 * math.sin(math.pi * step)))
+        else:
+            off = Vector((0.06, -0.08 * step - 0.4 * over, 0.12 * math.sin(math.pi * over)))
+        an.leg(side, rest + off, 0.0, 0.16 * sx)
 
 
 def victim(an, ctx, f):
@@ -85,87 +95,115 @@ def victim(an, ctx, f):
     v = K.Victim()
     socket = pl.point_to_victim(an.rest_delta("Head") @ SOCKET)
     if f <= GRAB:
-        K.recoil(v, f, 4, 18, socket, (10, 22))
-        ctx["grab_head"] = v.head_world().copy()
+        K.recoil(v, f, 1, 8, socket, (4, 10))
+        ctx["grab_torso"] = v.torso.copy()
+        K.jolt_head(v, f, HITS, 14)
         return v
-    face = pl.point_to_victim(an.rest_delta("Head") @ (SOCKET + Vector((0, -0.24, -0.02))))
-    lift = ss(GRAB, LIFTED, f)
-    pos = ctx["grab_head"].translation.lerp(face, lift)
-    kick = window(f, GRAB, GRAB + 4, DIAL_END - 6, DROP)
-    sw = K.rot("X", 5 * math.sin(f / 4.0) * kick) @ K.rot("Z", 4 * math.sin(f / 3.3) * kick)
-    head_cf = K.look_cf(pos, socket)
-    held = K.Victim()
-    held.hang_from_head(head_cf, sw)
-    if f >= DROP:
-        lying = Matrix.Translation((-0.2, -2.45, -1.6)) @ K.rot("Y", -15) @ K.rot("X", 88)
-        ctx.setdefault("drop_torso", held.torso.copy())
-        return K.fall(v, ctx["drop_torso"], f, DROP, LAND, lying, socket)
-    v.torso, v.T["Head"] = held.torso, held.T["Head"]
+    a = ctx["grab_torso"]
+    up = Matrix.Translation(a.translation + Vector((0, 0.9, -0.4))) @ K.rot("X", -10)
+    if f <= LIFT:
+        v.torso = K.blend_cf(a, up, K.back_out((f - GRAB) / (LIFT - GRAB), 1.5))
+    elif f <= SLAM:
+        t = (f - LIFT) / (SLAM - LIFT)
+        v.torso = K.blend_cf(up, LYING, t * t)
+    else:
+        v.torso = LYING.copy()
+        v.torso.translation.y += 0.3 * math.sin(math.pi * min(1.0, (f - SLAM) / 5))
+    kick = window(f, GRAB, GRAB + 2, DIAL_END, RAISE) * (0.5 if f > SLAM else 1.0)
     K.kick_legs(v, f, kick)
+    if f > SLAM:  # flat on their back, legs kicking, then still
+        for leg, sx in (("Right Leg", 1), ("Left Leg", -1)):
+            v.rotate(leg, K.rot("X", -15 + 20 * math.sin(f / 2.5 + sx) * kick) @ K.rot("Z", 8 * sx))
+    v.look(socket, limit=55 if f > SLAM else 70)
+    K.jolt_head(v, f, HITS, 22 if f >= HANG else 14)
     return v
 
 
 def claw_and_handset(an, ctx, f, v):
     pl = ctx["pl"]
     T = an.rest_delta("UpperTorso")
-    torso_b = pl.to_blender(v.torso)
-    tc = torso_b.translation
-    right_v = torso_b.to_3x3().col[0].normalized()
-    up_v = torso_b.to_3x3().col[1].normalized()
-    fwd_v = -torso_b.to_3x3().col[2].normalized()  # the player's facing (toward him)
-    # the claw: reaches for the chest, clamps round it, opens to let go
-    reach = ss(8, GRAB, f)
-    release = ss(DROP, DROP + 6, f)
+    tb = pl.to_blender(v.torso)
+    tu = tb.to_3x3().col[1].normalized()
+    tf = -tb.to_3x3().col[2].normalized()  # the way their chest faces
+    reach = ss(3, GRAB, f)
     rest = T @ an.pb["RightLowerArm"].bone.tail_local
-    chest = tc + fwd_v * (0.5 * KM + 0.07) + up_v * 0.25 * KM
-    target = rest.lerp(chest, A.ease(reach)) + (T.to_3x3() @ Vector((-0.3, -1, 0.2))) * 0.15 * math.sin(math.pi * reach)
-    if release:
-        target = target.lerp(rest + Vector((-0.1, -0.3, 0.2)), release)
-    hand_dir = (up_v * 0.2 - right_v * 0.3 - fwd_v * 0.2).normalized()
+    throat = pl.point_to_blender(v.torso @ Vector((0.0, 0.85, -0.6)))
+    target = rest.lerp(throat, K.back_out(reach, 1.3))
     K.reach(an, "Right", target, T.to_3x3() @ Vector((-0.8, 0.4, -0.4)),
-            hand_dir if 0.5 < reach and release < 0.5 else None, -fwd_v)
-    # the handset: from his side up to the player's ear, earcups to it, mouthpiece to their mouth
-    lift = ss(GRAB + 4, HANDSET, f) * (1 - ss(HIT - 2, DROP + 4, f))
+            (tu * 0.6 - tf * 0.2).normalized() if reach > 0.5 else None, -tf)
+    # the handset: at his side, to their ear as they lie there, raised high, slammed down on their face
     head_b = pl.to_blender(v.head_world())
     hx = head_b.to_3x3().col[0].normalized()
     hu = head_b.to_3x3().col[1].normalized()
     hf = -head_b.to_3x3().col[2].normalized()
-    centre = head_b.translation + hx * (0.62 * KM + 0.06) + hf * 0.02 - hu * 0.06
-    y = (hf * 0.8 - hu * 0.6).normalized()  # the mouthpiece end
-    z = (hx - y * hx.dot(y)).normalized()  # earcups (its underside) to the ear
-    x = y.cross(z)
-    Mset = Matrix((x, y, z)).transposed().to_4x4()
-    M1 = Matrix.Translation(centre) @ Mset @ Matrix.Translation(-R.HANDSET_C) @ an.pb["LeftHand"].bone.matrix_local
+    ear = head_b.translation + hx * (0.62 * KM + 0.06) - hu * 0.04
+    y = (hf * 0.8 - hu * 0.6).normalized()
+    z = (hx - y * hx.dot(y)).normalized()
+    M_ear = Matrix.Translation(ear) @ Matrix((y.cross(z), y, z)).transposed().to_4x4()
+    face = head_b.translation + hf * (0.5 * KM + 0.05)
+    yf, zf = hu.copy(), hf.copy()  # lying flat across their face, earpiece to their forehead
+    M_face = Matrix.Translation(face) @ Matrix((yf.cross(zf), yf, zf)).transposed().to_4x4()
+    M_high = Matrix.Translation(face + Vector((0, 0.15, 0.85))) @ Matrix((yf.cross(zf), yf, zf)).transposed().to_4x4()
+
+    def hand_for(Mset):
+        return Mset @ Matrix.Translation(-R.HANDSET_C) @ an.pb["LeftHand"].bone.matrix_local
+
     import bpy as _b
     _b.context.view_layer.update()
     an.fk({"LeftUpperArm": [("x", -0.1)], "LeftLowerArm": [("x", -1.9)]})
     _b.context.view_layer.update()
     M0 = an.pb["LeftHand"].matrix.copy()
-    p = M0.translation.lerp(M1.translation, lift) + Vector((0.15, 0.0, 0.05)) * math.sin(math.pi * lift)
-    q = M0.to_quaternion().slerp(M1.to_quaternion(), A.ease(min(1.0, lift * 1.3)))
-    M = q.to_matrix().to_4x4()
-    M.translation = p
-    R.place_left_hand(an, M, Vector((0.5, 1.0, -0.2)).lerp(Vector((0.7, 0.1, -0.7)), lift))
-    return reach, release
+    to_ear = ss(OVER - 4, HANDSET, f)
+    up = ss(DIAL_END, RAISE, f)
+    down = ss(RAISE + 2, HANG, f)
+    M = K.blend_cf(M0, hand_for(M_ear), to_ear)
+    if up:
+        M = K.blend_cf(M, hand_for(M_high), K.back_out(up, 1.2))
+    if down:
+        M = K.blend_cf(M, hand_for(M_face), down * down)
+    pole = Vector((0.5, 1.0, -0.2)).lerp(Vector((0.8, 0.3, 0.2)), max(to_ear, up))
+    R.place_left_hand(an, M, pole)
+    return reach
 
 
 def kill(an, ctx, f):
     monster_body(an, f)
     v = victim(an, ctx, f)
-    reach, release = claw_and_handset(an, ctx, f, v)
-    grip = max(0.0, reach * 2 - 1) * (1 - release)
-    pose = K.finger_curl(an, "Right", -4 + 36 * grip, spread=(1 - grip) * 4)
+    claw_and_handset(an, ctx, f, v)
+    grip = ss(GRAB - 3, GRAB, f)
+    pose = K.finger_curl(an, "Right", -6 + 44 * grip, spread=(1 - grip) * 6)
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
-    if GRAB < f < DROP:
+    if GRAB < f <= SLAM:  # their hands at the claw on their throat
         pl = ctx["pl"]
-        K.clutch(v, pl, f, GRAB, {"Right Arm": an.pb["RightLowerArm"].tail, "Left Arm": an.pb["RightLowerArm"].head})
+        K.clutch(v, pl, f, GRAB, {"Right Arm": an.pb["RightLowerArm"].tail, "Left Arm": an.pb["RightHand"].tail})
+    elif f > SLAM:  # flat on the floor, arms thrown out to the sides, pushing at him
+        for arm, sx in (("Right Arm", 1), ("Left Arm", -1)):
+            d = Vector((0.9 * sx, 0.25 + 0.15 * math.sin(f / 3.0 + sx), -0.45))
+            v.point(arm, (v.torso.to_3x3() @ d).normalized())
+        if f > RAISE:  # flung up to shield their face from the handset
+            shield = ss(RAISE, HANG - 2, f)
+            for arm, sx in (("Right Arm", 1), ("Left Arm", -1)):
+                d = (v.torso.to_3x3() @ Vector((0.4 * sx, 0.3, -1.0))).normalized()
+                cur = (v.parts()[arm].to_3x3() @ Vector((0, -1, 0))).normalized()
+                v.point(arm, cur.lerp(d, shield).normalized())
     return v
 
 
+NOTE = """Receiver kill, the player's half: InternalArmature carries the action
+Receiver_Kill_Victim (30 fps, frames 0-120). Its constraints to the control rig are muted so the
+keys drive it; export it with your R6 exporter as usual. The timeline markers are the beats:
+Grab, Slammed, Handset, DialStart (QTE starts), DialEnd (QTE ends), HangUp, End.
+The 'Monster (reference)' collection holds the Receiver playing his half, at your in-game size,
+lined up where the game should put him: 4.5 studs in front of the player, facing them.
+"""
+
+
 def main(blend, export_dir, preview):
-    K.run_kill(blend, "Receiver_Rig", LENGTH, KM, DISTANCE, kill, os.path.join(export_dir, "Receiver_Kill_Victim.rbxmx"),
-               preview, "Receiver_Kill_Victim", MARKERS)
+    ctx = K.run_kill(blend, "Receiver_Rig", LENGTH, KM, DISTANCE, kill, None, preview, "Receiver_Kill_Victim", MARKERS)
+    template = os.path.normpath(os.path.join(HERE, "..", "..", "shared", "r6", "Blender_R6.blend"))
+    K.write_r6_blend(template, os.path.join(export_dir, "Receiver_Kill_Victim.blend"), ctx["parts"], "Receiver_Kill_Victim",
+                     MARKERS, (blend, "Receiver_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE)
     print("kill written")
 
 

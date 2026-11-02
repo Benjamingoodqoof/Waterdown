@@ -5,75 +5,109 @@ it kills, made to play together. Each kill is 4 s long and works in first and th
 the player's head is aimed at the monster's face at every key moment, so a camera locked to
 their head gets the jumpscare.
 
-| Monster | Kill | Monster animation | Player animation (R6) |
+| Monster | Kill | Monster animation | Player animation (R6, Blender) |
 |---|---|---|---|
-| Dewey (poster monster, floor 1) | Close-up into Poster wrap | `poster_monster/export/PosterMonster_Kill.fbx` | `poster_monster/export/PosterMonster_Kill_Victim.rbxmx` |
-| CRT Man (Stand-In, floor 2) | Broadcast | `stand_in/export/StandIn_Kill.fbx` | `stand_in/export/StandIn_Kill_Victim.rbxmx` |
-| The Litter (stack, floor 3) | Pulled in | `litter/export/Stack_Kill.fbx` | `litter/export/Stack_Kill_Victim.rbxmx` |
-| The Receiver (floor 4) | Hold the line into Dial | `receiver/export/Receiver_Kill.fbx` | `receiver/export/Receiver_Kill_Victim.rbxmx` |
+| Dewey (poster monster, floor 1) | Snatch | `poster_monster/export/PosterMonster_Kill.fbx` | `poster_monster/export/PosterMonster_Kill_Victim.blend` |
+| CRT Man (Stand-In, floor 2) | Broadcast into Channel change | `stand_in/export/StandIn_Kill.fbx` | `stand_in/export/StandIn_Kill_Victim.blend` |
+| The Litter (stack, floor 3) | Pulled in | `litter/export/Stack_Kill.fbx` | `litter/export/Stack_Kill_Victim.blend` |
+| The Receiver (floor 4) | Hang up | `receiver/export/Receiver_Kill.fbx` | `receiver/export/Receiver_Kill_Victim.blend` |
+
+Each one feels different from the player's eyes: CRT Man holds you up to his screen and turns
+your head like a channel knob, so the view rolls round; Dewey hangs you upside down in front
+of his mask; the stack drags you along the floor and up to its head creature's mouth; the
+Receiver slams you onto your back and hangs the handset up on your face.
 
 They're made for the heights you set in Studio: Dewey 10 studs, CRT Man 11, the stack 10, the
 Receiver 10, next to a standard 5-stud R6 player. The monster animations are exported at the
 same scale as each monster's other animations, so they play on your scaled models the way the
 walk and run do.
 
+## The player's half: the R6 .blend files
+
+Each `*_Kill_Victim.blend` is a copy of your `Blender_R6.blend` with the kill keyed on it:
+
+- **The animation** is the action `<Monster>_Kill_Victim` on `InternalArmature` (the armature
+  with a bone per R6 part), 30 fps, frames 0-120. Export it with your R6 exporter as usual.
+- **The control rig** (`__PrimaryArmature`) is hidden, and InternalArmature's constraints to it
+  are muted, so the keys drive the body directly. To pose it with the controls again, unmute
+  them (the keys then stop showing).
+- **The beats** are timeline markers, with the same names as the markers below.
+- **The monster** is in the `Monster (reference)` collection, at your in-game size, playing
+  its half of the kill, standing where the game should put it. Hide or delete it before
+  exporting if your exporter picks up other objects.
+- A `KILL_README` text block in each file says the same.
+
+The kill scripts also keep the player's pose in a preview .blend with the player as blocks and
+a camera on their head, for rendering checks (see Rebuilding).
+
 ## What happens, and the markers
 
-The player's animation has named keyframes at each beat. `track.KeyframeReached` fires with
-the name, so the game can start its screen effects, sounds and QTEs on cue.
+Put a keyframe marker (or a named keyframe) at each of these frames when you set the player's
+animation up in Studio, and the game can start its screen effects, sounds and QTEs on cue with
+`track:GetMarkerReachedSignal(name)` (or `KeyframeReached` for named keyframes). Frames are at
+30 fps.
 
-**Dewey: "Close-up" into "Poster wrap".** He lunges and clamps his rolled-poster claws on the
-player's shoulders, then bends all the way down until his cracked mask is a hand's width from
-their face, the empty eye holes staring into the lens, his head slowly tipping over. Then he
-straightens and pulls them into his chest, wrapping his arms round them.
+**Dewey: "Snatch".** He drops into a crouch, darts in low and snatches the player by the ankle,
+whipping them off their feet and up. He dangles them upside down in front of his mask,
+turning them slowly, his own head tipped right over to match theirs, grinning. Then he swings
+them up and slams them into the floor, and crouches over them, claws pinning them, his mask
+sinking down over their face.
 
-| Marker | Time | Use it for |
+| Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 0.67 s | |
-| `LeanIn` | 1.13 s | The mask fills the view. **QTE starts.** The slowed jingle |
-| `Wrap` | 2.07 s | **QTE ends.** Start slapping wet posters over the camera, one at a time |
-| `Covered` | 3.33 s | The last poster, "WELCOME!" |
-| `End` | 4.0 s | |
+| `Snatch` | 12 | |
+| `Dangle` | 34 | **QTE starts.** The slowed jingle |
+| `Slam` | 76 | **QTE ends.** They hit the floor |
+| `Wrap` | 84 | Start slapping wet posters over the camera, one at a time |
+| `Covered` | 104 | The last poster, "WELCOME!" |
+| `End` | 120 | |
 
-**CRT Man: "Broadcast".** He goes still and watches, then takes one long stride in and grips
-the player's head with both hands, the way he grips his own monitor. He lifts them off their
-feet and holds their face up to his screen, looking them over, then drops them.
+**CRT Man: "Broadcast" into "Channel change".** His monitor snaps round to the player, he
+lunges and clamps both hands on their head, the way he grips his own monitor, and yanks them
+off their feet up to his screen. He smacks the side of their head twice, like a broken TV,
+then turns their head like a channel knob, click by click, so the view rolls round. The signal
+cuts and he hurls them to the floor.
 
-| Marker | Time | Use it for |
+| Marker | Frame | Use it for |
 |---|---|---|
-| `Grip` | 0.87 s | **QTE starts.** If he was disguised, glitch him back to the suit here |
-| `Broadcast` | 1.93 s | Put the player's face on his `Screen`, live |
-| `NoSignal` | 2.87 s | His screen and the player's camcorder cut to NO SIGNAL; the monitor jolts. **QTE ends** |
-| `Drop` | 3.27 s | He lets go |
-| `End` | 4.0 s | |
+| `Grip` | 14 | **QTE starts.** If he was disguised, glitch him back to the suit here |
+| `Broadcast` | 30 | Put the player's face on his `Screen`, live |
+| `Smack` | 50, 60 | A burst of static and color split on each |
+| `Channel` | 66 | **QTE ends.** The view glitches into his slices as it rolls |
+| `NoSignal` | 88 | His screen and the player's camcorder cut to NO SIGNAL |
+| `Thrown` | 100 | They hit the floor |
+| `End` | 120 | |
 
-**The Litter: "Pulled in".** The stack rears up, then its right arm shoots out, stretching as
-the creatures in it spread apart, and closes on the player's chest. It drags them in, tug by
-tug, its head creature's open mouth turned on them, then yanks them face first into its body
-and closes its other arm over them while the pile writhes.
+**The Litter: "Pulled in".** It rears up, then its right arm shoots out, stretching as the
+creatures in it spread apart, and yanks the player off their feet, face down on the floor. It
+drags them in, tug by tug, then hauls them up to its head creature's open mouth and pulls them
+face first into its body, closing its other arm over them while the pile writhes.
 
-| Marker | Time | Use it for |
+| Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 0.87 s | **The save window opens:** a teammate's light on the stack now makes it drop them |
-| `Yank` | 1.93 s | **The window closes** |
-| `Black` | 2.33 s | The camera is inside the stack: cut to black, skittering, blinking eyes. Hide the player's body if you like |
-| `End` | 4.0 s | |
+| `Grab` | 14 | **The save window opens:** a teammate's light on the stack now makes it drop them |
+| `Floor` | 22 | They hit the floor |
+| `Tug` | 32, 42, 52 | Each pull: skittering, a jolt |
+| `Lift` | 58 | **The window closes** |
+| `Mouth` | 66 | The head creature's mouth is in their face |
+| `Black` | 74 | The camera is inside the stack: cut to black, skittering, blinking eyes |
+| `End` | 120 | |
 
-**The Receiver: "Hold the line" into "Dial".** His phone head snaps round to the player. He
-lunges, grabs them round the chest with his claw and lifts them to his face, presses his
-handset to their ear, and turns the empty dial socket in his head right up to their face while
-the dial in his chest dials, digit after digit. Then his head drives into theirs and he drops
-them.
+**The Receiver: "Hang up".** His phone head snaps round, he lunges and seizes the player by the
+throat with his claw, lifts them and slams them down on their back. He crouches over them,
+the phone head hanging over their face, and holds the handset to their ear while the dial in
+his chest dials, digit after digit. Then he raises the handset high and slams it down on
+their face, like hanging up a phone.
 
-| Marker | Time | Use it for |
+| Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 0.8 s | |
-| `Handset` | 1.53 s | The handset is at their ear: play their voice line back, crackly |
-| `DialStart` | 1.93 s | **QTE starts.** Each dial click darkens the screen |
-| `DialEnd` | 3.27 s | **QTE ends.** Busy signal |
-| `Black` | 3.47 s | His head hits the camera |
-| `Drop` | 3.53 s | He lets go |
-| `End` | 4.0 s | |
+| `Grab` | 12 | |
+| `Slammed` | 26 | They hit the floor |
+| `Handset` | 44 | The handset is at their ear: play their voice line back, crackly |
+| `DialStart` | 48 | **QTE starts.** Each dial click darkens the screen |
+| `DialEnd` | 86 | **QTE ends** |
+| `HangUp` | 98 | The handset hits the camera: dial tone, black |
+| `End` | 120 | |
 
 If the player escapes a QTE, stop both tracks (with a short fade) and unanchor them.
 
@@ -81,11 +115,9 @@ If the player escapes a QTE, stop both tracks (with a short fade) and unanchor t
 
 1. **The monster's half:** import `<Monster>_Kill.fbx` with the Animation Editor's FBX import
    onto your monster (as with its other animations), and publish it.
-2. **The player's half:** in Studio, right-click ServerStorage and choose **Insert from
-   File...**, then pick the `.rbxmx`. It adds a KeyframeSequence. Right-click it and choose
-   **Save to Roblox** to publish it as an animation. (Or put it under
-   `ServerStorage.RBX_ANIMSAVES.<an R6 dummy's name>` and open it in the Animation Editor to
-   look at it first.)
+2. **The player's half:** open `<Monster>_Kill_Victim.blend`, export the action on
+   `InternalArmature` with your R6 exporter, bring it into Studio on an R6 rig as you usually
+   do, add the markers above, and publish it.
 
 ## Playing a kill
 
@@ -139,10 +171,8 @@ end
 Listen for the markers on the player's track:
 
 ```lua
-vTrack.KeyframeReached:Connect(function(name: string)
-    if name == "Wrap" then
-        -- start the posters, close the QTE, ...
-    end
+vTrack:GetMarkerReachedSignal("Wrap"):Connect(function()
+    -- start the posters, ...
 end)
 ```
 
@@ -179,6 +209,7 @@ I haven't been able to test any of this in Studio.
 The kills are made in Blender with `shared/kill_core.py`: the R6 player is posed with the
 standard R6 joints (the same Motor6D C0s and C1s as a Roblox R6 character) and placed in the
 monster's scene at the in-game scale, so whatever the monster grabs, the player's body follows.
+Impacts shake the player's head, so a camera locked to it shakes too.
 
 ```bash
 python3 poster_monster/src/poster_kill.py poster_monster/poster_monster.blend poster_monster/export PREVIEW.blend
@@ -189,5 +220,6 @@ python3 receiver/src/receiver_kill.py receiver/receiver.blend receiver/export PR
 python3 shared/kill_sheet.py PREVIEW.blend sheet.png   # a third-person row and a first-person row
 ```
 
-Each kill script keys the monster's `Kill` action into its .blend, writes the player's
-`.rbxmx`, and saves a preview .blend with the player as blocks and a camera on their head.
+Each kill script keys the monster's `Kill` action into its .blend, writes the player's half
+onto a copy of `shared/r6/Blender_R6.blend` (your R6 rig), and saves a preview .blend with the
+player as blocks and a camera on their head.

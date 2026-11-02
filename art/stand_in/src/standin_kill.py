@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""The Stand-In's kill, "Broadcast": he grips the player's head the way he grips his own
-monitor, lifts them off their feet and holds their face up to his screen (the game shows their
-face on it, live, then NO SIGNAL), then drops them.
+"""The Stand-In's kill (CRT Man), "Broadcast" into "Channel change": his monitor snaps round to
+the player, he lunges and clamps both hands on their head the way he grips his own monitor,
+and yanks them off their feet up to his screen. Their face goes up on it, live. He smacks the
+side of their head, twice, like a broken TV, then turns their head like a channel knob, click
+by click, so the first-person view rolls round. The signal cuts, and he hurls them to the
+floor.
 
-Writes the Stand-In's "Kill" action into the blend, and the player's half as an R6
-KeyframeSequence (export/StandIn_Kill_Victim.rbxmx). Both are 4 s and start together, with the
-player's HumanoidRootPart DISTANCE studs in front of his, facing him.
+Writes the Stand-In's "Kill" action into the blend, and the player's half on the R6 rig
+(export/StandIn_Kill_Victim.blend). Both are 4 s and start together, with the player's
+HumanoidRootPart DISTANCE studs in front of his, facing him.
 
-Markers (KeyframeReached on the player's track): Notice 0, Grip 26 (QTE starts), Broadcast 58
-(his screen shows the player's face), NoSignal 86 (screen and camcorder cut to NO SIGNAL; QTE
-ends), Drop 98, End 120.
+Markers: Grip 14 (QTE starts), Broadcast 30 (his screen shows their face), Smack 50 and 60,
+Channel 66 (QTE ends; the view starts glitching), NoSignal 88 (screen and camcorder cut to NO
+SIGNAL), Thrown 100 (they hit the floor), End 120.
 
 Usage: python3 standin_kill.py BLEND EXPORT_DIR PREVIEW_BLEND
 """
@@ -17,7 +20,7 @@ import math
 import os
 import sys
 
-import bpy
+import bpy  # noqa: F401
 from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -27,153 +30,168 @@ import anim_core as A  # noqa: E402
 import kill_core as K  # noqa: E402
 from kill_core import smoothstep as ss, window  # noqa: E402
 
-HEIGHT_M, HEIGHT_STUDS = 2.6958, 11.0  # as tall in the game as the user scaled him
-KM = HEIGHT_M / HEIGHT_STUDS  # meters per in-game stud
-DISTANCE = 4.2  # studs between his HumanoidRootPart and the player's at the start
+HEIGHT_M, HEIGHT_STUDS = 2.6958, 11.0
+KM = HEIGHT_M / HEIGHT_STUDS
+DISTANCE = 4.2
 LENGTH = 120
-MARKERS = {0: "Notice", 26: "Grip", 58: "Broadcast", 86: "NoSignal", 98: "Drop", 120: "End"}
-SCREEN = Vector((0.0, -0.3, 2.49))  # the middle of his screen, at rest
+GRIP, LIFTED, SMACKS, CLICKS, NOSIG, THROW, LAND = 14, 28, (50, 60), (68, 74, 80, 86), 88, 90, 100
+MARKERS = {0: "Notice", GRIP: "Grip", 30: "Broadcast", 50: "Smack", 60: "Smack", 66: "Channel", NOSIG: "NoSignal",
+           LAND: "Thrown", LENGTH: "End"}
+SCREEN = Vector((0.0, -0.3, 2.49))
 SIDES = (("Left", 1.0), ("Right", -1.0))
-GRAB, LIFTED, DROP, LAND = 26, 52, 98, 110
+HITS = (GRIP, SMACKS[0], SMACKS[1], NOSIG, LAND) + CLICKS
+
+
+def smack(f, at):
+    """A slap landing at frame `at`: -1 winding up, +1 at the hit, settling back."""
+    wind = ss(at - 8, at - 2, f) * (1 - ss(at - 2, at, f))
+    hit = A.bump(f, at - 2, at, at + 9)
+    return wind, hit
+
+
+def roll(f):
+    """The channel-knob twist: 32 degrees a click, each snapped round in 2 frames."""
+    return sum(-32 * ss(c - 2, c, f) for c in CLICKS)
 
 
 def monster_body(an, f):
-    """His body and legs: still and watching, a long stride in with a deep lean to grab, then
-    straightening up with the player held to his screen."""
-    lunge = ss(10, 24, f)
-    straighten = ss(GRAB + 2, LIFTED, f)
-    drop = ss(DROP, DROP + 10, f)
-    lean = 30 * lunge * (1 - straighten) + 4 * straighten
-    tilt = 12 * (1 - lunge) + 9 * window(f, 56, 66, 78, 88) * math.sin(math.pi * (f - 56) / 32)
-    jolt = A.bump(f, 85, 88, 96)
+    snap = A.bump(f, 0, 3, 12)
+    antic = A.bump(f, 3, 6, 10)
+    lunge = ss(5, GRIP, f)
+    up = ss(GRIP, LIFTED, f)
+    throw = ss(THROW - 4, LAND, f)
+    after = ss(LAND, LAND + 10, f)
+    w1, h1 = smack(f, SMACKS[0])
+    w2, h2 = smack(f, SMACKS[1])
+    click = sum(A.bump(f, c - 2, c, c + 5) for c in CLICKS)
+    lean = -6 * antic + 34 * lunge * (1 - up) + 4 * up + 26 * throw * (1 - after) + 14 * after
+    twist = -14 * (w1 + 1.4 * w2) + 10 * (h1 + 1.4 * h2) + 30 * A.bump(f, THROW - 4, THROW + 2, LAND + 6)
     pose = {
-        "LowerTorso": [("x", 4 + 0.6 * lean)],
-        "UpperTorso": [("x", 6 + lean)],
-        # the monitor tipped at the player, looking them over; it jolts when the signal cuts
-        "Head": [("x", -6 * (1 - lunge) + (14 + 8 * jolt) * straighten + 18 * drop), ("y", tilt),
-                 ("z", 5 * math.sin(2 * math.pi * f / 70) * straighten * (1 - drop))],
+        "LowerTorso": [("x", 3 + 0.5 * lean)],
+        "UpperTorso": [("x", 4 + lean), ("z", twist)],
+        # the monitor snaps to the player, leans in to look them over, jerks with each click
+        "Head": [("x", -8 * snap + 12 * up + 6 * click + 10 * A.bump(f, NOSIG - 2, NOSIG, NOSIG + 8) + 22 * after),
+                 ("y", 14 * snap - 10 * up * (1 - after) - 4 * click), ("z", 10 * snap + 6 * math.sin(f / 8.0) * up * (1 - throw))],
     }
-    pose.update({f"Cable{i}": [("x", 6 * lunge * (1 - straighten) + 2 * math.sin(f / 7 + i))] for i in (1, 2, 3)})
-    an.fk(pose, {"LowerTorso": (0.0, -0.38 * lunge + 0.12 * straighten, -0.07 * lunge + 0.04 * straighten)})
-    step = ss(10, 22, f)
+    pose.update({f"Cable{i}": [("x", 12 * lunge * (1 - up) + 18 * throw * (1 - after) + 3 * math.sin(f / 5 + i))]
+                 for i in (1, 2, 3)})
+    an.fk(pose, {"LowerTorso": (0.0, 0.05 * antic - 0.4 * lunge + 0.14 * up - 0.12 * throw,
+                                -0.08 * lunge + 0.05 * up - 0.08 * throw)})
+    step = ss(5, 12, f)
     for side, sx in SIDES:
         rest = an.pb[f"{side}Foot"].bone.head_local
-        if side == "Right":  # the long step in
-            target = rest + Vector((0, -0.55 * step, 0.12 * math.sin(math.pi * step)))
-        else:
-            target = rest + Vector((0, -0.1 * step, 0))
+        target = rest + (Vector((0, -0.6 * step, 0.14 * math.sin(math.pi * step))) if side == "Right" else
+                         Vector((0, -0.1 * step, 0)))
         an.leg(side, target, 0.0, 0.06 * sx)
+
+
+def held_head(an, ctx, f):
+    """Where the player's head is while he holds it, and which way it faces."""
+    pl = ctx["pl"]
+    screen_v = pl.point_to_victim(an.rest_delta("Head") @ SCREEN)
+    hold = pl.point_to_victim(an.rest_delta("Head") @ (SCREEN + Vector((0, -0.34, -0.06))))
+    lift = K.back_out((f - GRIP) / (LIFTED - GRIP), 2.2)
+    pos = ctx["grab_head"].translation.lerp(hold, lift)
+    _, h1 = smack(f, SMACKS[0])
+    _, h2 = smack(f, SMACKS[1])
+    hit = h1 + 1.5 * h2
+    pos += Vector((0.5 * hit, 0.1 * hit, 0))  # knocked toward their right
+    cf = K.look_cf(pos, screen_v) @ K.rot("Y", -28 * hit) @ K.rot("Z", -10 * hit) @ K.rot("Z", roll(f))
+    return cf, screen_v
 
 
 def victim(an, ctx, f):
     pl = ctx["pl"]
     v = K.Victim()
-    screen = an.rest_delta("Head") @ SCREEN
-    screen_v = pl.point_to_victim(screen)
-    if f <= GRAB:
-        # notices him and recoils, arms coming up to shield the face
-        rec = ss(4, 20, f)
-        lean = 9 * rec
-        R = K.rot("X", lean)
-        v.torso = Matrix.Translation((0, -0.05 * rec, 0.25 * rec)) @ K.rot("X", lean)
-        for leg in ("Right Leg", "Left Leg"):
-            v.rotate(leg, R.inverted())
-        up = ss(12, 24, f)
-        for arm, sx in (("Right Arm", 1), ("Left Arm", -1)):
-            v.point(arm, Vector((0.35 * sx * up, -1 + 1.6 * up, -0.9 * up)).normalized())
-        v.look(screen_v, limit=60)
+    screen_v = pl.point_to_victim(an.rest_delta("Head") @ SCREEN)
+    if f <= GRIP:
+        K.recoil(v, f, 1, 9, screen_v, (5, 12))
         ctx["grab_head"] = v.head_world().copy()
+        K.jolt_head(v, f, (GRIP,))
         return v
-    # held by the head: from where he grabbed it up to his screen, then dropped
-    hold_b = an.rest_delta("Head") @ (SCREEN + Vector((0, -0.34, -0.06)))  # in front of the screen
-    hold = pl.point_to_victim(hold_b)
-    lift = ss(GRAB, LIFTED, f)
-    head_pos = ctx["grab_head"].translation.lerp(hold, lift)
-    kick = window(f, GRAB, GRAB + 4, 84, 96)
-    swing = Vector((math.sin(f / 4.3) * 5 * kick, 0, math.sin(f / 3.1) * 4 * kick))
-    torso_rot = K.rot("X", swing.x) @ K.rot("Z", swing.z)
-    head_cf = K.look_cf(head_pos, screen_v)
+    head_cf, _ = held_head(an, ctx, f)
+    kick = window(f, GRIP, GRIP + 3, 70, 86)
+    sw = K.rot("X", 6 * math.sin(f / 3.6) * kick) @ K.rot("Z", 5 * math.sin(f / 2.9) * kick + roll(f) * 0.3)
     held = K.Victim()
-    held.hang_from_head(head_cf, torso_rot)
-    if f >= DROP:
-        # dropped: falls, crumples at his feet onto its back, and lies still
-        t = min(1.0, (f - DROP) / (LAND - DROP))
-        lying = K.Victim()
-        lying.torso = Matrix.Translation((0.3, -2.45, -1.2)) @ K.rot("Y", 18) @ K.rot("X", 88)
-        bounce = 0.25 * math.sin(math.pi * min(1.0, (f - LAND) / 6)) if f > LAND else 0.0
-        a, b = held.torso, lying.torso
-        m = K.blend_cf(a, b, t * t)
-        m.translation.y += bounce
-        v.torso = m
-        limp = ss(DROP, LAND, f)
-        v.rotate("Right Arm", K.rot("Z", 70 * limp) @ K.rot("X", -20 * limp))
-        v.rotate("Left Arm", K.rot("Z", -55 * limp) @ K.rot("X", 30 * limp))
-        v.rotate("Right Leg", K.rot("X", -25 * limp) @ K.rot("Z", 8 * limp))
-        v.rotate("Left Leg", K.rot("X", -5 * limp) @ K.rot("Z", -10 * limp))
-        v.look(screen_v, roll=-20 * limp, limit=50)
+    held.hang_from_head(head_cf, sw)
+    if f >= THROW:
+        # hurled down and away to his right, tumbling, onto their back
+        lying = Matrix.Translation((-1.8, -2.45, -0.4)) @ K.rot("Y", 60) @ K.rot("X", 90)
+        ctx.setdefault("throw_from", held.torso.copy())
+        K.fall(v, ctx["throw_from"], f, THROW, LAND, lying, screen_v)
+        K.jolt_head(v, f, (LAND,), 18)
         return v
     v.torso, v.T["Head"] = held.torso, held.T["Head"]
-    # legs kicking, slowing as he goes limp after the signal cuts
-    for leg, ph in (("Right Leg", 0.0), ("Left Leg", math.pi)):
-        a = math.sin(f / 2.6 + ph) * 32 * kick
-        v.rotate(leg, K.rot("X", a - 8 * (1 - kick)) @ K.rot("Z", 4 * (1 if leg == "Right Leg" else -1)))
-    ctx["head_cf"] = head_cf
+    K.kick_legs(v, f, kick)
+    K.jolt_head(v, f, HITS, 10)
     return v
 
 
-def grip_arms(an, ctx, f, v):
-    """His hands: hanging, then reaching for the player's head, then clamped on its sides (as on
-    his own monitor), opening when he drops them."""
+def hands(an, ctx, f, v):
+    """Both hands on the sides of the player's head; the right one swings away and slaps back
+    in for each smack; both let go to throw them."""
     pl = ctx["pl"]
-    reach = ss(10, GRAB, f)
-    release = ss(DROP, DROP + 8, f)
+    reach = ss(4, GRIP, f)
+    release = ss(THROW, THROW + 4, f)
     T = an.rest_delta("UpperTorso")
     head_b = pl.to_blender(v.head_world())
     hc = head_b.translation
-    side_x = head_b.to_3x3().col[0].normalized()  # the player's right, in his space
-    up = head_b.to_3x3().col[1].normalized()
-    fwd = -head_b.to_3x3().col[2].normalized()
+    hx = head_b.to_3x3().col[0].normalized()
+    hu = head_b.to_3x3().col[1].normalized()
+    hf = -head_b.to_3x3().col[2].normalized()
     for side, sx in SIDES:
         rest = T @ an.pb[f"{side}LowerArm"].bone.tail_local
-        grip = hc + side_x * sx * (0.62 * KM + 0.05) - up * 0.06 * 0 - fwd * 0.02
-        target = rest.lerp(grip, A.ease(reach))
-        target += (T.to_3x3() @ Vector((sx * 0.3, -1.0, 0.0))) * 0.18 * math.sin(math.pi * reach) * (1 - release)
+        grip = hc + hx * sx * (0.62 * KM + 0.05) - hf * 0.02
+        target = rest.lerp(grip, K.back_out(reach, 1.2))
+        target += (T.to_3x3() @ Vector((sx * 0.3, -1.0, 0.2))) * 0.15 * math.sin(math.pi * reach)
+        if side == "Right":
+            for at in SMACKS:
+                w, h = smack(f, at)
+                target = target + hx * sx * 0.45 * w + (T.to_3x3() @ Vector((0, 0, 0.12))) * w
         if release:
-            target = target.lerp(rest + Vector((sx * 0.15, -0.35, 0.25)), release)
+            follow = rest + (T.to_3x3() @ Vector((sx * 0.2, -0.45, -0.15)))
+            target = target.lerp(follow, release)
         pole = T.to_3x3() @ Vector((sx * 0.8, -0.65 * reach, -0.6))
-        hand_dir = (up * 0.9 + fwd * 0.3).normalized() if reach > 0.5 else None
-        palm = -side_x * sx
-        K.reach(an, side, target, pole, hand_dir if release < 0.5 else None, palm)
+        hand_dir = (hu * 0.9 + hf * 0.3).normalized() if reach > 0.5 and release < 0.5 else None
+        K.reach(an, side, target, pole, hand_dir, -hx * sx)
     return reach, release
 
 
 def kill(an, ctx, f):
     monster_body(an, f)
     v = victim(an, ctx, f)
-    reach, release = grip_arms(an, ctx, f, v)
+    reach, release = hands(an, ctx, f, v)
     grip = max(0.0, reach * 2 - 1) * (1 - release)
     pose = {}
     for side, _ in SIDES:
-        pose.update(K.finger_curl(an, side, 8 + 28 * grip, spread=-6 * (1 - grip)))
+        open_ = max(smack(f, a)[0] for a in SMACKS) if side == "Right" else 0.0
+        pose.update(K.finger_curl(an, side, (8 + 30 * grip) * (1 - open_) - 8 * open_, spread=-6 * (1 - grip)))
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
-    # the player's hands clutch at his wrists while held
-    if GRAB < f < DROP:
+    if GRIP < f < THROW:  # their hands clawing at his wrists, flung out by the smacks
         pl = ctx["pl"]
-        clutch = ss(GRAB, GRAB + 8, f)
-        for arm, side in (("Right Arm", "Left"), ("Left Arm", "Right")):
-            wrist = pl.point_to_victim(an.pb[f"{side}LowerArm"].tail)
-            sh = v.torso @ Vector((1.0 if arm == "Right Arm" else -1.0, 0.5, 0))
-            d = (wrist - sh).normalized()
-            hang = Vector((0, -1, 0))
-            v.point(arm, hang.lerp(d, clutch).normalized())
+        K.clutch(v, pl, f, GRIP, {"Right Arm": an.pb["LeftLowerArm"].tail, "Left Arm": an.pb["RightLowerArm"].tail})
+        fling = sum(smack(f, a)[1] for a in SMACKS)
+        if fling > 0.01:
+            v.point("Left Arm", Vector((-0.9, 0.2 + fling, 0.3)).normalized())
     return v
 
 
+NOTE = """CRT Man (Stand-In) kill, the player's half: InternalArmature carries the action
+StandIn_Kill_Victim (30 fps, frames 0-120). Its constraints to the control rig are muted so the
+keys drive it; export it with your R6 exporter as usual. The timeline markers are the beats:
+Grip (QTE starts), Broadcast, Smack, Smack, Channel (QTE ends), NoSignal, Thrown, End.
+The 'Monster (reference)' collection holds the CRT Man playing his half, at your in-game size,
+lined up where the game should put him: 4.2 studs in front of the player, facing them.
+"""
+
+
 def main(blend, export_dir, preview):
-    K.run_kill(blend, "StandIn_Rig", LENGTH, KM, DISTANCE, kill, os.path.join(export_dir, "StandIn_Kill_Victim.rbxmx"),
-               preview, "StandIn_Kill_Victim", MARKERS)
-    print("kill: monster action 'Kill' and victim KeyframeSequence written")
+    ctx = K.run_kill(blend, "StandIn_Rig", LENGTH, KM, DISTANCE, kill, None, preview, "StandIn_Kill_Victim", MARKERS)
+    template = os.path.normpath(os.path.join(HERE, "..", "..", "shared", "r6", "Blender_R6.blend"))
+    K.write_r6_blend(template, os.path.join(export_dir, "StandIn_Kill_Victim.blend"), ctx["parts"], "StandIn_Kill_Victim",
+                     MARKERS, (blend, "StandIn_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE)
+    print("kill written")
 
 
 if __name__ == "__main__":
