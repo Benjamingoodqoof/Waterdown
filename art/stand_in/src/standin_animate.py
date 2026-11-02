@@ -141,7 +141,7 @@ def palm_axis(an, side):
 
 def grip_arms(an, blend, flare=0.0):
     """IKs both hands onto the monitor's sides (blend 0: hanging as at rest, 1: gripping),
-    swinging up from outside, the elbows flared."""
+    reaching up in front of him."""
     D = an.rest_delta("Head")
     T = an.rest_delta("UpperTorso")
     for side, sx in SIDES:
@@ -149,8 +149,8 @@ def grip_arms(an, blend, flare=0.0):
         start = T @ rest
         end = D @ GRIP[side]
         t = A.ease(blend)
-        out = T.to_3x3() @ Vector((sx, 0.05, 0.0))
-        target = start.lerp(end, t) + out * 0.12 * math.sin(math.pi * t)
+        out = T.to_3x3() @ Vector((sx * 0.35, -1.0, 0.0))  # up in front of him, not past his hips
+        target = start.lerp(end, t) + out * 0.24 * math.sin(math.pi * t)
         # the elbows come forward and out under the monitor, as when holding a box up to the face
         pole = (T.to_3x3() @ Vector((sx * 0.8, 0.3 - 0.95 * t, -0.6 - 0.3 * (1 - t)))) + Vector((sx * flare, 0, 0))
         an.two_bone(f"{side}UpperArm", f"{side}LowerArm", target, pole)
