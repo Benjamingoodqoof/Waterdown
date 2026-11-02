@@ -230,7 +230,7 @@ and `Body` (the litterling) have translation keys; every other bone is rotation 
 ## Kill
 
 `export/Stack_Kill.fbx` (this monster) and `export/Stack_Kill_Victim.blend` (the R6 player it
-kills, keyed on your R6 rig) play together: Swarmed: it shoves the player onto their back and collapses on top of them. 3.3 s, one-shot, with timeline markers for
+kills, keyed on your R6 rig) play together: Bite: it pins the player's arms, hoists them to its head creature, bites down on their head, thrashes them and flings them down. About 3 to 3.7 s, one-shot, with timeline markers for
 the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
 half, line the two up, play them and lock the camera to the player's head.
 
