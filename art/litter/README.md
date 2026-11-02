@@ -65,7 +65,7 @@ stack's creatures reuse the litterling's maps. Only the inner mass has its own.
 
 | MeshPart | Triangles | Roblox setup |
 |---|---|---|
-| Body (body, legs, eyes, mouth, teeth, hair) | 4,339 | SurfaceAppearance `litterling_body_*` |
+| LitterlingBody (body, legs, eyes, mouth, teeth, hair) | 4,339 | SurfaceAppearance `litterling_body_*` |
 | Eyeshine | 192 | Neon, pale yellow (see In the game) |
 | **Total** | **4,531** | |
 

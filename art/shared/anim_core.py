@@ -293,6 +293,11 @@ def export_actions(rig, out_dir, base, names=("Idle", "Walk", "Run"), fbx_kw=Non
     base_<Action>.fbx for each action (no textures), base.glb with every action, and
     base_Roblox.blend."""
     kw = dict(FBX_KW, **(fbx_kw or {}))
+    # Roblox matches animation tracks to parts and bones by name: a mesh named like a bone takes
+    # that bone's track, and whatever is skinned to the bone stays frozen
+    clash = {b.name for b in rig.data.bones} & {o.name for o in bpy.data.objects if o.type == "MESH"}
+    if clash:
+        raise ValueError(f"meshes named like bones (rename them): {sorted(clash)}")
     sc = bpy.context.scene
     acts = [bpy.data.actions[n] for n in names if n in bpy.data.actions]
     rig.animation_data_create()

@@ -454,7 +454,7 @@ def leg(mb, control, r0, r1, weights_at, n=6, per=6, joints=(), hairs=0, seed=0)
 
 # ================================================================ the litterling
 def build_litterling():
-    body, shine = MB("Body"), MB("Eyeshine")
+    body, shine = MB("LitterlingBody"), MB("Eyeshine")
     creature(body, shine, C.BODY_C, Matrix.Identity(3), 1.0, 1, {"Body": 1.0}, 0.0, tufts=46)
     for side, sx in SIDES:
         for k in range(C.LEGS):

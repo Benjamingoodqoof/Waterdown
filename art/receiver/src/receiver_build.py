@@ -531,13 +531,13 @@ def build_hands():
             off = {"Thumb": 0.02, "Index": 0.012, "Middle": 0.0, "Ring": -0.012, "Pinky": -0.024}[f]
             start = w - d * 0.035 + a * off
             mid = (start + joints[0]) / 2 - pn * 0.016
-            cord(f"{side}Hand", [start, mid] + path, bones + fb, r=FINGER_R + (0.003 if f == "Thumb" else 0.0),
+            cord(f"{side}HandCords", [start, mid] + path, bones + fb, r=FINGER_R + (0.003 if f == "Thumb" else 0.0),
                  step=0.02, ends=("tuck", "claw"))
         # thicker cords on the palm side and the back give the hand some body
         for k, (off, depth) in enumerate(((-1, 0.014), (1, 0.014), (0, -0.016))):
             p0 = w + d * 0.01 + a * (0.024 * off) + pn * depth
             p1 = w + d * 0.14 + a * (0.04 * off) + pn * (depth + 0.008)
-            cord(f"{side}Hand", [p0, (p0 + p1) / 2 + pn * 0.01, p1], bones, r=0.024, ends=("tuck", "cap"))
+            cord(f"{side}HandCords", [p0, (p0 + p1) / 2 + pn * 0.01, p1], bones, r=0.024, ends=("tuck", "cap"))
 
 
 def build_legs():
@@ -601,20 +601,20 @@ def build_feet():
                                              (0.022, 0.04, 0.036, 0.28)):
             ctl = [at(-0.04, s_heel * 0.5, 0.05), at(-0.07, s_heel, FOOT_R + 0.004), at(0.0, s_heel * 1.1, FOOT_R),
                    at(0.11, (s_heel + s_ball) / 2 * 1.1, FOOT_R), at(0.21, s_ball, FOOT_R), at(reach, s_toe, FOOT_R)]
-            cord(f"{side}Foot", ctl, bones, r=FOOT_R, ends=("tuck", "cap"))
+            cord(f"{side}FootCords", ctl, bones, r=FOOT_R, ends=("tuck", "cap"))
         # the instep: three cords down the front of the ankle, over the top of the foot to the toes
         for k, s in enumerate((-0.028, 0.0, 0.028)):
             reach = 0.28 - 0.015 * abs(k - 1)
             ctl = [an + V(0, 0, 0.05) + lat * (s * 0.4), at(0.035, s * 0.5, 0.1), at(0.11, s * 0.85, 0.07),
                    at(0.2, s * 1.05, FOOT_R * 2 + 0.006), at(reach, s * 1.05, FOOT_R * 2 - 0.002)]
-            cord(f"{side}Foot", ctl, bones, r=FOOT_R, ends=("tuck", "cap"))
+            cord(f"{side}FootCords", ctl, bones, r=FOOT_R, ends=("tuck", "cap"))
         # the heel: two cords from the back of the ankle round the heel and under it
         for s in (-0.016, 0.016):
             ctl = [an + V(0, 0, 0.04) - fwd * 0.03 + lat * s, at(-0.075, s, 0.07), at(-0.095, s * 1.2, 0.035),
                    at(-0.07, s * 1.3, FOOT_R * 2 + 0.002), at(0.0, s, FOOT_R * 2), at(0.07, s * 0.6, 0.05)]
-            cord(f"{side}Foot", ctl, bones, r=FOOT_R, ends=("tuck", "tuck"))
+            cord(f"{side}FootCords", ctl, bones, r=FOOT_R, ends=("tuck", "tuck"))
         # a thick core inside, so nothing shows through the gaps
-        cord(f"{side}Foot", [an + V(0, 0, 0.03), at(0.04, 0.0, 0.055), at(0.17, 0.0, 0.04)], bones, r=0.034,
+        cord(f"{side}FootCords", [an + V(0, 0, 0.03), at(0.04, 0.0, 0.055), at(0.17, 0.0, 0.04)], bones, r=0.034,
              ends=("tuck", "cap"))
 
 
@@ -756,7 +756,7 @@ def build_head():
     carve(w_ob, cutter("CutWater", cw, nw, C.SOCKET["r"] + 0.008, 0.05, C.SOCKET["depth"] + 0.008, (0.5, 0.2)))
 
     # the opaque parts: the base plate, the empty cradle, the socket's black hole and torn ring
-    head = mesh("Head", "props")
+    head = mesh("Phone", "props")
     base = []
     for z, inset in ((-0.024, 0.0), (-0.006, -0.012), (0.004, -0.012), (0.004, 0.004)):
         ring = [p - V(0, 0, p.z - z) for p in shell_ring(0.0, inset, 56)]

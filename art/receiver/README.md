@@ -70,10 +70,10 @@ CallStart and CallLoop for his fake calls).
 | Chest | 5,376 | cord |
 | Waist | 5,568 | cord |
 | LeftArm / RightArm | 7,680 / 7,432 | cord |
-| LeftHand / RightHand | 2,000 / 2,224 | cord |
+| LeftHandCords / RightHandCords | 2,000 / 2,224 | cord |
 | LeftLeg / RightLeg | 7,960 / 8,208 | cord |
-| LeftFoot / RightFoot | 1,672 / 1,672 | cord |
-| Head (base, cradle, socket) | 1,348 | props |
+| LeftFootCords / RightFootCords | 1,672 / 1,672 | cord |
+| Phone (base, cradle, socket) | 1,348 | props |
 | Shell (glass) | 2,308 | glass |
 | Water | 2,400 | water |
 | Dial | 3,978 | props |
@@ -110,11 +110,11 @@ lighter version is possible with fewer, coarser cords.
    rotate him 180°.
 5. **Textures:** upload the PNGs in `textures/roblox/`, then add a `SurfaceAppearance` to each
    MeshPart:
-   - **Cord parts:** `Chest`, `Waist`, `LeftArm`, `RightArm`, `LeftHand`, `RightHand`,
-     `LeftLeg`, `RightLeg`, `LeftFoot`, `RightFoot` get ColorMap `cord_color`, NormalMap
+   - **Cord parts:** `Chest`, `Waist`, `LeftArm`, `RightArm`, `LeftHandCords`,
+     `RightHandCords`, `LeftLeg`, `RightLeg`, `LeftFootCords`, `RightFootCords` get ColorMap `cord_color`, NormalMap
      `cord_normal` and RoughnessMap `cord_roughness`. The cord texture tiles along each cord,
      so leave the UVs as they are.
-   - **Phone parts:** `Head`, `Dial`, `Handset`, `HandsetCord`, `Details` get `props_color`,
+   - **Phone parts:** `Phone`, `Dial`, `Handset`, `HandsetCord`, `Details` get `props_color`,
      `props_normal`, `props_roughness` and MetalnessMap `props_metalness`.
    - **Shell:** gets `glass_color`, `glass_normal` and `glass_roughness`. Set
      `AlphaMode = Transparency`: the color map's alpha makes the glass see-through while the
@@ -244,6 +244,11 @@ How the parts follow the bones:
 - **Handset cord:** blends from `Head` to `LeftHand` along its length, so it stretches when he
   moves his arm.
 - **Phone, dial and handset:** rigid on `Head`, `DialSpin` and `LeftHand`.
+
+No mesh shares a name with a bone. Roblox matches animation tracks to parts and bones by name,
+so a part named like a bone takes that bone's track, and everything skinned to the bone
+freezes (the export refuses to write one). That's why the phone is `Phone`, not `Head`, and
+the cord hands and feet are `LeftHandCords` and so on.
 
 `renders/rom_sheet.png` shows him lunging, reaching, crouching, cocking his head (with the dial
 turned) and curling his claw.
