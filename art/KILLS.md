@@ -1,21 +1,22 @@
 # Kill animations
 
 Each monster has a kill: a pair of animations, one for the monster and one for the R6 player
-it kills, made to play together. Each kill is 4 s long and works in first and third person:
-the player's head is aimed at the monster's face at every key moment, so a camera locked to
-their head gets the jumpscare.
+it kills, made to play together. They're short (100 frames, 3.3 s), simple and grounded: one
+clear grab, a hold while the game's effects play, then the player dies and crumples. The
+player's head stays on the monster at the key moments, so a camera locked to it gets the
+scare.
 
 | Monster | Kill | Monster animation | Player animation (R6, Blender) |
 |---|---|---|---|
-| Dewey (poster monster, floor 1) | Snatch | `poster_monster/export/PosterMonster_Kill.fbx` | `poster_monster/export/PosterMonster_Kill_Victim.blend` |
-| CRT Man (Stand-In, floor 2) | Broadcast into Channel change | `stand_in/export/StandIn_Kill.fbx` | `stand_in/export/StandIn_Kill_Victim.blend` |
-| The Litter (stack, floor 3) | Pulled in | `litter/export/Stack_Kill.fbx` | `litter/export/Stack_Kill_Victim.blend` |
-| The Receiver (floor 4) | Hang up | `receiver/export/Receiver_Kill.fbx` | `receiver/export/Receiver_Kill_Victim.blend` |
+| Dewey (poster monster, floor 1) | Poster wrap | `poster_monster/export/PosterMonster_Kill.fbx` | `poster_monster/export/PosterMonster_Kill_Victim.blend` |
+| CRT Man (Stand-In, floor 2) | Collar grab | `stand_in/export/StandIn_Kill.fbx` | `stand_in/export/StandIn_Kill_Victim.blend` |
+| The Litter (stack, floor 3) | Swarmed | `litter/export/Stack_Kill.fbx` | `litter/export/Stack_Kill_Victim.blend` |
+| The Receiver (floor 4) | Neck grab and stab | `receiver/export/Receiver_Kill.fbx` | `receiver/export/Receiver_Kill_Victim.blend` |
 
-Each one feels different from the player's eyes: CRT Man holds you up to his screen and turns
-your head like a channel knob, so the view rolls round; Dewey hangs you upside down in front
-of his mask; the stack drags you along the floor and up to its head creature's mouth; the
-Receiver slams you onto your back and hangs the handset up on your face.
+From the player's eyes: CRT Man holds you face to face with his screen (your avatar on it,
+static building); Dewey crushes your face into his wet posters; the stack shoves you onto your
+back and its head creature's mouth comes down on you before the pile goes over the camera; the
+Receiver lifts you by the neck, then you look down at his claw in your chest.
 
 They're made for the heights you set in Studio: Dewey 10 studs, CRT Man 11, the stack 10, the
 Receiver 10, next to a standard 5-stud R6 player. The monster animations are exported at the
@@ -27,7 +28,7 @@ walk and run do.
 Each `*_Kill_Victim.blend` is a copy of your `Blender_R6.blend` with the kill keyed on it:
 
 - **The animation** is the action `<Monster>_Kill_Victim` on `InternalArmature` (the armature
-  with a bone per R6 part), 30 fps, frames 0-120. Export it with your R6 exporter as usual.
+  with a bone per R6 part), 30 fps, frames 0-100. Export it with your R6 exporter as usual.
 - **The control rig** (`__PrimaryArmature`) is hidden, and InternalArmature's constraints to it
   are muted, so the keys drive the body directly. To pose it with the controls again, unmute
   them (the keys then stop showing).
@@ -47,67 +48,56 @@ animation up in Studio, and the game can start its screen effects, sounds and QT
 `track:GetMarkerReachedSignal(name)` (or `KeyframeReached` for named keyframes). Frames are at
 30 fps.
 
-**Dewey: "Snatch".** He drops into a crouch, darts in low and snatches the player by the ankle,
-whipping them off their feet and up. He dangles them upside down in front of his mask,
-turning them slowly, his own head tipped right over to match theirs, grinning. Then he swings
-them up and slams them into the floor, and crouches over them, claws pinning them, his mask
-sinking down over their face.
+**Dewey: "Poster wrap".** He steps in, clamps his rolled-poster claws on the player's
+shoulders and yanks them up against his chest, face first into the wet posters, wrapping his
+long arms round them, his mask bent down over their head. He squeezes, tighter with each
+breath, while they struggle less and less, then lets them slide down and crumple at his feet.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Snatch` | 12 | |
-| `Dangle` | 34 | **QTE starts.** The slowed jingle |
-| `Slam` | 76 | **QTE ends.** They hit the floor |
-| `Wrap` | 84 | Start slapping wet posters over the camera, one at a time |
-| `Covered` | 104 | The last poster, "WELCOME!" |
-| `End` | 120 | |
+| `Grab` | 10 | **QTE starts** |
+| `Wrap` | 22 | Their face hits his chest: start slapping wet posters over the camera, one at a time |
+| `Covered` | 66 | The last poster, "WELCOME!". **QTE ends** |
+| `Drop` | 72 | He lets go |
+| `End` | 100 | |
 
-**CRT Man: "Broadcast" into "Channel change".** His monitor snaps round to the player, he
-lunges and clamps both hands on their head, the way he grips his own monitor, and yanks them
-off their feet up to his screen. He smacks the side of their head twice, like a broken TV,
-then turns their head like a channel knob, click by click, so the view rolls round. The signal
-cuts and he hurls them to the floor.
+**CRT Man: "Collar grab".** He takes one long step in, grabs the player by the collar and hauls
+them up onto their toes, holding their face a forearm's length from his screen, his monitor
+bent down at them. He holds them there, still, while they pull at his wrist. Then they go limp,
+he lets go, and they crumple at his feet.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Grip` | 14 | **QTE starts.** If he was disguised, glitch him back to the suit here |
-| `Broadcast` | 30 | Put the player's face on his `Screen`, live |
-| `Smack` | 50, 60 | A burst of static and color split on each |
-| `Channel` | 66 | **QTE ends.** The view glitches into his slices as it rolls |
-| `NoSignal` | 88 | His screen and the player's camcorder cut to NO SIGNAL |
-| `Thrown` | 100 | They hit the floor |
-| `End` | 120 | |
+| `Grab` | 12 | Show the player's avatar on his `Screen` and start the static, getting louder. **QTE starts** |
+| `Death` | 74 | The static peaks: they die. **QTE ends** |
+| `Drop` | 80 | He lets go |
+| `End` | 100 | |
 
-**The Litter: "Pulled in".** It rears up, then its right arm shoots out, stretching as the
-creatures in it spread apart, and yanks the player off their feet, face down on the floor. It
-drags them in, tug by tug, then hauls them up to its head creature's open mouth and pulls them
-face first into its body, closing its other arm over them while the pile writhes.
+If he was disguised as a teammate, glitch him back to the suit at `Grab`.
 
-| Marker | Frame | Use it for |
-|---|---|---|
-| `Grab` | 14 | **The save window opens:** a teammate's light on the stack now makes it drop them |
-| `Floor` | 22 | They hit the floor |
-| `Tug` | 32, 42, 52 | Each pull: skittering, a jolt |
-| `Lift` | 58 | **The window closes** |
-| `Mouth` | 66 | The head creature's mouth is in their face |
-| `Black` | 74 | The camera is inside the stack: cut to black, skittering, blinking eyes |
-| `End` | 120 | |
-
-**The Receiver: "Hang up".** His phone head snaps round, he lunges and seizes the player by the
-throat with his claw, lifts them and slams them down on their back. He crouches over them,
-the phone head hanging over their face, and holds the handset to their ear while the dial in
-his chest dials, digit after digit. Then he raises the handset high and slams it down on
-their face, like hanging up a phone.
+**The Litter: "Swarmed".** It lurches in and slams both hands onto the player's shoulders,
+shoves them over onto their back and collapses on top of them, its head creature's open mouth
+coming down at their face as the pile goes over them. Pinned underneath, they push at it while
+the creatures writhe and turn to look at them, until they stop moving.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 12 | |
-| `Slammed` | 26 | They hit the floor |
-| `Handset` | 44 | The handset is at their ear: play their voice line back, crackly |
-| `DialStart` | 48 | **QTE starts.** Each dial click darkens the screen |
-| `DialEnd` | 86 | **QTE ends** |
-| `HangUp` | 98 | The handset hits the camera: dial tone, black |
-| `End` | 120 | |
+| `Grab` | 10 | **The save window opens:** a teammate's light on the stack now makes it drop them |
+| `Floor` | 24 | They hit the floor |
+| `Swarm` | 34 | The pile lands on them: dark, skittering, pairs of eyes blinking. **The window closes** |
+| `End` | 100 | |
+
+**The Receiver: "Neck grab and stab".** His phone head snaps round, he steps in and seizes the
+player by the neck with his left hand (the handset pressed across their throat), lifting them
+onto their toes. He holds them a moment, head cocked, drawing his claw back, then drives it
+through their torso. They look down at it. He pulls it out and drops them.
+
+| Marker | Frame | Use it for |
+|---|---|---|
+| `Grab` | 12 | **QTE starts** |
+| `Stab` | 44 | Blood on the player's screen. **QTE ends** |
+| `Drop` | 74 | He lets go |
+| `End` | 100 | |
 
 If the player escapes a QTE, stop both tracks (with a short fade) and unanchor them.
 
@@ -127,10 +117,10 @@ both for the kill so nothing pushes them apart.
 
 | Monster | Distance (studs) |
 |---|---|
-| Dewey | 4.6 |
-| CRT Man | 4.2 |
-| The stack | 4.8 |
-| The Receiver | 4.5 |
+| Dewey | 3.8 |
+| CRT Man | 3.6 |
+| The stack | 3.6 |
+| The Receiver | 3.8 |
 
 On the server:
 

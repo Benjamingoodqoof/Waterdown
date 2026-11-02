@@ -122,7 +122,7 @@ model you imported (8 studs, origin at the pelvis). Pick an action on
 ## Kill
 
 `export/PosterMonster_Kill.fbx` (this monster) and `export/PosterMonster_Kill_Victim.blend` (the R6 player it
-kills, keyed on your R6 rig) play together: Snatch: he snatches the player by the ankle, dangles them upside down in front of his mask, then slams them into the floor and crouches over them. 4 s, one-shot, with timeline markers for
+kills, keyed on your R6 rig) play together: Poster wrap: he grabs the player's shoulders, crushes them face first into his chest, then drops them. 3.3 s, one-shot, with timeline markers for
 the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
 half, line the two up, play them and lock the camera to the player's head.
 

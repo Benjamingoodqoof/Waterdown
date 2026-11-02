@@ -229,7 +229,7 @@ rotation only.
 ## Kill
 
 `export/Receiver_Kill.fbx` (this monster) and `export/Receiver_Kill_Victim.blend` (the R6 player it
-kills, keyed on your R6 rig) play together: Hang up: he slams the player onto their back, holds the handset to their ear while his chest dial dials, then slams the handset down on their face. 4 s, one-shot, with timeline markers for
+kills, keyed on your R6 rig) play together: Neck grab and stab: he lifts the player by the neck and drives his claw through their torso. 3.3 s, one-shot, with timeline markers for
 the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
 half, line the two up, play them and lock the camera to the player's head.
 

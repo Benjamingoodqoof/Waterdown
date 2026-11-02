@@ -271,9 +271,9 @@ def render_sheet(out_png, frames, cams, res=(300, 240), samples=10, label=""):
     fnt = ImageFont.truetype("/usr/share/fonts/opentype/inter/Inter-SemiBold.otf", 14)
     for r, cam in enumerate(cams):
         sc.camera = cam
-        head = bpy.data.objects.get("Victim_Head")
-        if head:  # in first person, as in Roblox, you don't see your own head
-            head.hide_render = cam.name == "FP"
+        for o in bpy.data.objects:  # in first person, as in Roblox, you don't see your own body
+            if o.name.startswith("Victim_"):
+                o.hide_render = cam.name == "FP"
         for c, f in enumerate(frames):
             sc.frame_set(f)
             sc.render.filepath = tmp
@@ -544,3 +544,29 @@ def write_r6_blend(template, out_blend, parts_frames, action_name, markers, mons
     txt = bpy.data.texts.new("KILL_README")
     txt.write(note)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(out_blend))
+
+
+def crumple(v, f, start, end, from_torso, lying, look_at=None, side=1.0):
+    """Goes limp and collapses: the knees give (the body drops and folds), then it tips over
+    onto its back (or side) on the floor. Weighty, not a ragdoll fling."""
+    t = min(1.0, max(0.0, (f - start) / (end - start)))
+    knees = Matrix.Translation(from_torso.translation + Vector((0.2 * side, -1.3, -0.3))) @ rot("Z", 8 * side) @ rot("X", -18)
+    if t < 0.45:
+        m = blend_cf(from_torso, knees, smoothstep(0, 1, t / 0.45))
+        sit = smoothstep(0, 1, t / 0.45)
+    else:
+        u = (t - 0.45) / 0.55
+        m = blend_cf(knees, lying, u * u)
+        sit = 1.0 - 0.7 * u
+    if f > end:
+        m = lying.copy()
+        m.translation.y += 0.12 * math.sin(math.pi * min(1.0, (f - end) / 5))
+    v.torso = m
+    limp = smoothstep(start, end, f)
+    v.rotate("Right Leg", rot("X", -70 * sit - 10 * limp) @ rot("Z", 6))
+    v.rotate("Left Leg", rot("X", -55 * sit - 5 * limp) @ rot("Z", -8))
+    v.rotate("Right Arm", rot("Z", 25 * limp) @ rot("X", -15 * limp))
+    v.rotate("Left Arm", rot("Z", -30 * limp) @ rot("X", 10 * limp))
+    if look_at is not None:
+        v.look(look_at, roll=-15 * limp * side, limit=40 + 20 * (1 - limp))
+    return v

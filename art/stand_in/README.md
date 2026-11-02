@@ -169,7 +169,7 @@ rotation only.
 ## Kill
 
 `export/StandIn_Kill.fbx` (this monster) and `export/StandIn_Kill_Victim.blend` (the R6 player it
-kills, keyed on your R6 rig) play together: Broadcast into Channel change: he grips the player's head like his own monitor, holds them up to his screen, smacks their head like a broken TV, turns it like a channel knob, then hurls them down. 4 s, one-shot, with timeline markers for
+kills, keyed on your R6 rig) play together: Collar grab: he grabs the player by the collar and holds their face to his screen (the game shows their avatar on it, with building static) until they die. 3.3 s, one-shot, with timeline markers for
 the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
 half, line the two up, play them and lock the camera to the player's head.
 
