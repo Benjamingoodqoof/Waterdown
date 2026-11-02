@@ -6,7 +6,8 @@
 - Legs are solved with a two-bone IK every frame, aiming each bone with the smallest swing
   from where its parent leaves it, so no bone ever picks up a twist about its own length.
   The result is written out as plain rotation keys: ordinary FK animation any exporter reads.
-- Cycles are in place, 30 fps, and loop: the last frame equals the first.
+- Cycles are in place, 30 fps, and loop: the last frame equals the first. One-shot actions
+  (a lift, a grab) are keyed straight through and don't loop.
 - export_actions writes one FBX per action plus a GLB and a .blend with every action, all in
   studs, after the monster's own export has scaled the scene.
 """
@@ -68,10 +69,11 @@ def bone_quat(bone, rots):
 
 
 # ---------------------------------------------------------------- gait
-def foot_path(phi, duty, stride, lift, dangle, toe_first=True):
+def foot_path(phi, duty, stride, lift, dangle, toe_first=True, skew=1.0):
     """An in-place foot at cycle phase phi: (y offset, height, toe pitch in degrees, planted).
     During stance the foot slides back at ground speed; it lands toes first (if asked) and
-    rolls off the toes."""
+    rolls off the toes. skew < 1 lifts the foot early in the swing (a heel kicked up behind, as
+    in a run) and brings it down in front."""
     if phi < duty:
         s = phi / duty
         y, z, pitch = -stride / 2 + stride * s, 0.0, 0.0
@@ -83,20 +85,41 @@ def foot_path(phi, duty, stride, lift, dangle, toe_first=True):
         return y, z, pitch, True
     s = (phi - duty) / (1 - duty)
     y = stride / 2 - stride * ease(s)
-    z = 0.06 * (1 - s) + 0.03 * s + lift * math.sin(math.pi * s) ** 0.9
+    z = 0.06 * (1 - s) + 0.03 * s + lift * math.sin(math.pi * s ** skew) ** 0.9
     pitch = 24 * (1 - s) ** 2 + dangle * math.sin(math.pi * s) + (10 * s * s if toe_first else 0.0)
     return y, z, pitch, False
 
 
-def biped_legs(an, phi, duty, stride, lift, dangle=15, splay=0.1, stance_x=0.0, toe_first=True, drop=0.0):
+def biped_legs(an, phi, duty, stride, lift, dangle=15, splay=0.1, stance_x=0.0, toe_first=True, drop=0.0, skew=1.0):
     """Both legs of a humanoid rig through a gait cycle (the right half a cycle behind), feet
     planted during stance. drop lowers the feet's rest height (the pelvis is lowered by the
     caller), so the knees stay bent."""
     for side, sx in (("Left", 1.0), ("Right", -1.0)):
         ph = (phi + (0.0 if side == "Left" else 0.5)) % 1.0
-        y, z, pitch, _ = foot_path(ph, duty, stride, lift, dangle, toe_first)
+        y, z, pitch, _ = foot_path(ph, duty, stride, lift, dangle, toe_first, skew)
         rest = an.pb[f"{side}Foot"].bone.head_local
         an.leg(side, Vector((rest.x + sx * stance_x, rest.y + y, rest.z + z - drop)), pitch, splay * sx)
+
+
+def arm_swing(side, phi, peak, fwd, back, elbow, elbow_amp=0.0, adduct=0.0, adduct_amp=0.0, twist=0.0,
+              twist_amp=0.0, lag=(0.08, 0.16), hand=0.0, hand_amp=0.0, lean=0.0):
+    """A running arm (left-side angles; the right is mirrored), peaking forward at phase `peak`.
+    The upper arm swings forward by `fwd` and back by `back` degrees about the shoulder; as it
+    comes forward it twists in (twist, + is inward) and swings in across the chest (adduct, + is
+    inward), and the elbow bends further (elbow, + bends). The elbow and the wrist follow a
+    little later (lag, as fractions of the cycle), so the forearm and hand swing through rather
+    than moving stiffly with the upper arm. lean: how far the torso above the shoulder is pitched
+    forward (degrees). Arms ride with the torso, so leaning in tips them back; this takes it back
+    out, so the swing stays centred on the arm hanging as it does at rest."""
+    s = cwave(phi, 1, -peak)
+    se = cwave(phi, 1, -(peak + lag[0]))
+    sh = cwave(phi, 1, -(peak + lag[1]))
+    theta = (fwd - back) / 2 + (fwd + back) / 2 * s + lean
+    return {
+        f"{side}UpperArm": mirror([("ly", twist + twist_amp * s), ("y", adduct + adduct_amp * s), ("x", -theta)], side),
+        f"{side}LowerArm": [("x", -(elbow + elbow_amp * se))],
+        f"{side}Hand": [("x", -(hand + hand_amp * sh))],
+    }
 
 
 def impact(phi, hits, decay=6.0, freq=2.5, lag=0.0):
@@ -173,6 +196,32 @@ class Animator:
         ft.matrix = rot
         ft.location = (0, 0, 0)
 
+    def rest_delta(self, name):
+        """The posed bone's transform relative to its rest (armature space): maps a point on the
+        bone at rest to where it is now."""
+        bpy.context.view_layer.update()
+        return self.pb[name].matrix @ self.pb[name].bone.matrix_local.inverted()
+
+    def orient(self, name, y_dir, axis, axis_dir):
+        """Turns a bone (in place) so it points along y_dir, rolled so its local `axis` ("x",
+        "-x", "z" or "-z") faces as nearly along axis_dir as it can (armature space)."""
+        bpy.context.view_layer.update()
+        pb = self.pb[name]
+        y = y_dir.normalized()
+        a = (axis_dir - y * axis_dir.dot(y)).normalized()
+        sign = -1.0 if axis.startswith("-") else 1.0
+        if axis.endswith("x"):
+            x = a * sign
+            z = x.cross(y)
+        else:
+            z = a * sign
+            x = y.cross(z)
+        m = Matrix((x, y, z)).transposed().to_4x4()
+        m.translation = pb.matrix.translation.copy()
+        pb.matrix = m
+        pb.location = (0, 0, 0)
+        bpy.context.view_layer.update()
+
     def key(self, frame):
         bpy.context.view_layer.update()
         for pb in self.pb:
@@ -188,11 +237,13 @@ class Animator:
 
 
 def build_actions(rig, actions, loc_bones=("LowerTorso",)):
-    """actions: [(name, frames, fn(an, phi, frame))]. Keys every frame; the last equals the first."""
+    """actions: [(name, frames, fn(an, phi, frame)[, {"loop": False}])]. Keys every frame. A
+    looping action's last frame equals its first; a one-shot runs phi from 0 to 1."""
     an = Animator(rig, loc_bones)
     rig.animation_data_create()
     made = {}
-    for name, length, fn in actions:
+    for name, length, fn, *opts in actions:
+        loop = (opts[0] if opts else {}).get("loop", True)
         old = bpy.data.actions.get(name)
         if old:
             bpy.data.actions.remove(old)
@@ -202,11 +253,14 @@ def build_actions(rig, actions, loc_bones=("LowerTorso",)):
         an.prev = {}
         for f in range(length + 1):
             an.reset()
-            fn(an, (f % length) / length, f % length)
+            if loop:
+                fn(an, (f % length) / length, f % length)
+            else:
+                fn(an, f / length, f)
             an.key(f)
         act.use_frame_range = True
         act.frame_start, act.frame_end = 0, length
-        act.use_cyclic = True
+        act.use_cyclic = loop
         made[name] = act
     an.reset()
     rig.animation_data.action = made[actions[0][0]]
@@ -264,7 +318,7 @@ def export_actions(rig, out_dir, base, names=("Idle", "Walk", "Run"), fbx_kw=Non
 
 def preview(rig, out_dir, views, actions=("Idle", "Walk", "Run"), step=1, loops=3):
     """Renders each action from its camera in `views` ({action: view name in render.VIEWS})
-    to an mp4 (looped `loops` times; the idle once). step: every how many frames to render
+    to an mp4 (looped `loops` times; the idle and one-shots once). step: every how many frames to render
     (an int, or {action: int}). The scene, lights and cameras are the caller's."""
     import render  # the poster monster's studio helpers, on the caller's path
     sc = bpy.context.scene
@@ -277,7 +331,8 @@ def preview(rig, out_dir, views, actions=("Idle", "Walk", "Run"), step=1, loops=
         os.makedirs(frames_dir, exist_ok=True)
         paths = []
         st = step.get(name, 1) if isinstance(step, dict) else step
-        for f in range(int(act.frame_start), int(act.frame_end), st):
+        end = int(act.frame_end) + (0 if act.use_cyclic else 1)  # a one-shot shows its last frame too
+        for f in range(int(act.frame_start), end, st):
             sc.frame_set(f)
             p = os.path.join(frames_dir, f"f_{f:04d}.png")
             sc.render.filepath = p
@@ -285,7 +340,7 @@ def preview(rig, out_dir, views, actions=("Idle", "Walk", "Run"), step=1, loops=
             paths.append(p)
         listing = os.path.join(frames_dir, "list.txt")
         with open(listing, "w") as fh:
-            for _ in range(1 if name == "Idle" else loops):
+            for _ in range(loops if act.use_cyclic and not name.startswith("Idle") else 1):
                 for p in paths:
                     fh.write(f"file '{p}'\nduration {st / FPS:.5f}\n")
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", listing, "-vf",

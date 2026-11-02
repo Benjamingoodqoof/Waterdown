@@ -3,7 +3,8 @@
 
 - the stack: hunched and heaving. Every creature in it keeps shifting and looking about on its
   slot, and each footstep sends a wobble up through the creatures. The walk is a heavy
-  lumber; the run is a scrambling charge, leaning in with the claws reaching.
+  lumber; the run is a heavy, rolling charge, the arms swinging big and the claws spreading at
+  the front of each swing.
 - the litterling: an idle that taps the floor and rears up with its front legs raised, and a
   scuttling, spider-like alternating gait (L1 R2 L3 R4, then R1 L2 R3 L4) for the walk and run.
 
@@ -76,7 +77,7 @@ def stack_idle(an, phi, f):
     an.leg("Right", C.SJ["ankle_Right"] + Vector((-0.02, 0.05, 0)), 0.0, -0.15)
 
 
-STACK_WALK_T, STACK_RUN_T = 40, 22
+STACK_WALK_T, STACK_RUN_T = 40, 24
 
 
 def stack_walk(an, phi, f):
@@ -102,28 +103,28 @@ def stack_walk(an, phi, f):
 
 
 def stack_run(an, phi, f):
-    duty, stride = 0.4, 1.35
-    swing = cwave(phi)
+    """A heavy, rolling charge: the stack throws its weight from foot to foot, the creatures
+    jolting at every thud; the long arms swing big and high, the finger legs spreading wide as
+    each arm swings up in front, as if clawing at you, and curling as it pulls back."""
+    duty, stride = 0.45, 1.5
+    tw = cwave(phi)  # +1 when the left leg is forward
+    hits = (0.0, 0.5)
+    thud = impact(phi, hits, 6.0, 2.0)
     pose = {
-        "LowerTorso": [("x", 16 + 3 * cwave(phi, 2, -0.1)), ("y", -6 * wave(phi, 1, -0.2)), ("z", -10 * swing)],
-        "UpperTorso": [("x", 20 + 3 * cwave(phi, 2, -0.15)), ("z", 14 * cwave(phi, 1, -0.04))],
-        "Head": [("x", -30 + 4 * cwave(phi, 2, -0.2)), ("z", -10 * cwave(phi, 1, -0.08))],
+        "LowerTorso": [("x", 14 + 2 * cwave(phi, 2, -0.2)), ("y", -9 * wave(phi)), ("z", -10 * tw)],
+        "UpperTorso": [("x", 18 + 3 * thud), ("y", 5 * wave(phi, 1, -0.08)), ("z", 16 * tw)],
+        "Head": [("x", -26 + 4 * impact(phi, hits, 6.0, 2.0, 0.05)), ("y", 4 * wave(phi, 1, -0.12)),
+                 ("z", -7 * cwave(phi, 1, -0.08))],
     }
-    for side, sx in SIDES:
-        peak = 0.5 if side == "Left" else 0.0
-
-        def arc(lag, peak=peak):
-            return cwave(phi, 1, -(peak + lag))
-
-        a = arc(0.0)
-        pose[f"{side}UpperArm"] = mirror([("x", -35 - 45 * a), ("y", 12 + 6 * a)], side)  # reaching, clawing forward
-        pose[f"{side}LowerArm"] = [("x", -30 + 18 * arc(0.1))]
-        pose[f"{side}Hand"] = [("x", -10 + 10 * arc(0.16))]
-        pose.update(fingers(side, 14 + 20 * (0.5 - 0.5 * arc(0.2)), 1.0, peak, phi, 0))  # claws open at the front
-    pose.update(creatures(phi, 4.0, hits=(0.0, 0.5), kick=1.8, look=8.0))
-    bob = -0.13 - 0.04 * cwave(phi, 2, -0.18)
-    an.fk(pose, {"LowerTorso": (0.02 * wave(phi, 1, 0.06), 0.0, bob)})
-    A.biped_legs(an, phi, duty, stride, 0.34, 20, 0.12, 0.01, toe_first=False)
+    for side, peak in (("Left", 0.52), ("Right", 0.02)):
+        pose.update(A.arm_swing(side, phi, peak, fwd=48, back=40, elbow=2, elbow_amp=18, adduct=-8, adduct_amp=8,
+                                twist=4, twist_amp=14, lag=(0.1, 0.2), hand=-6, hand_amp=16, lean=32))
+        spread = 0.5 + 0.5 * cwave(phi, 1, -(peak + 0.05))  # 1 at the front of the swing
+        pose.update(fingers(side, 30 - 28 * spread, 1.4 * spread, 0.0, phi, 0))
+    pose.update(creatures(phi, 4.0, hits=hits, kick=2.0, look=6.0))
+    bob = -0.14 - 0.05 * cwave(phi, 2, -0.22)  # lowest mid-stance
+    an.fk(pose, {"LowerTorso": (0.06 * wave(phi), 0.0, bob)})
+    A.biped_legs(an, phi, duty, stride, 0.3, 18, 0.16, 0.04, toe_first=False, skew=0.8)
     SPEEDS["Stack Run"] = stride / (duty * STACK_RUN_T / A.FPS)
 
 

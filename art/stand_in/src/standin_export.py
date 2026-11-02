@@ -40,7 +40,7 @@ def main():
         pb.location = (0, 0, 0)
         pb.scale = (1, 1, 1)
     scale, pelvis = to_roblox_units(rig, a.height_studs)
-    acts = A.export_actions(rig, a.out, "StandIn", names=("Idle", "Walk", "Run"))
+    acts = A.export_actions(rig, a.out, "StandIn", names=("Idle", "Walk", "Run", "Transform", "TransformLoop"))
     tex = os.path.normpath(os.path.join(HERE, "..", "textures"))
     rbx = os.path.join(tex, "roblox")
     os.makedirs(rbx, exist_ok=True)

@@ -203,7 +203,7 @@ higher ones later.
 |---|---|---|---|
 | `Idle` | 120 frames (4 s) | yes | Hunched and heaving, two slow breaths; the head turns slowly, looking about; the finger legs flex; the creatures fidget and look round |
 | `Walk` | 40 frames (1.33 s) | yes | A heavy, hunched lumber with flat-footed steps; the arms swing low; each step wobbles up the stack |
-| `Run` | 22 frames (0.73 s) | yes | A scrambling charge leaning in, head down, the arms reaching forward and the finger claws opening at the front of each swing; heavy steps that shake the whole stack |
+| `Run` | 24 frames (0.8 s) | yes | A heavy, rolling charge: it throws its weight from foot to foot, every thud jolting the creatures; the long arms swing big, reaching up in front with the finger legs spread wide as if clawing at you, and curling as they pull back |
 
 **The litterling:**
 
@@ -214,11 +214,11 @@ higher ones later.
 | `Run` | 8 frames (0.27 s) | yes | The same gait, fast and low, leaning in |
 
 **Matching speed:** the feet are matched to these ground speeds. At other speeds, scale the
-track speed to match, for example `track:AdjustSpeed(humanoid.WalkSpeed / 13.4)` for the
+track speed to match, for example `track:AdjustSpeed(humanoid.WalkSpeed / 12.2)` for the
 stack's run.
 
 - **Stack walk:** 3.2 studs/s
-- **Stack run:** 13.4 studs/s
+- **Stack run:** 12.2 studs/s
 - **Litterling walk:** 1.7 studs/s
 - **Litterling run:** 8.2 studs/s
 

@@ -4,7 +4,8 @@ The floor-2 monster for REM CYCLE, built from his monster sheet: a very tall, th
 long orange suit, with a boxy 90s CRT monitor where his head should be. The screen shows
 static and NO SIGNAL until he picks someone to copy. Then their face comes up on the screen,
 his body glitches apart, and he steps out looking exactly like them. Built procedurally in
-Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run).
+Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run, and Transform and
+TransformLoop for when he turns into a player).
 
 ![turnaround](renders/studio_turnaround.png)
 
@@ -39,11 +40,11 @@ screen `#1B0C06`, screen glow `#FFB07A`, shirt `#FFF0E2`, tie and shoes `#7A2D06
 | Path | What it is |
 |---|---|
 | `export/StandIn.fbx` | Rigged model for Roblox's 3D Importer: 7.8 studs tall, origin at the pelvis, textures embedded |
-| `export/StandIn_Roblox.blend` | The same 7.8-stud model and rig with the Idle, Walk and Run actions, for exporting the animations with a Roblox plugin |
-| `export/StandIn_Idle.fbx`, `_Walk.fbx`, `_Run.fbx` | One animation each, for the Animation Editor's FBX import |
-| `export/StandIn.glb` | Same model as glTF, with all three animations |
+| `export/StandIn_Roblox.blend` | The same 7.8-stud model and rig with the Idle, Walk, Run, Transform and TransformLoop actions, for exporting the animations with a Roblox plugin |
+| `export/StandIn_Idle.fbx`, `_Walk.fbx`, `_Run.fbx`, `_Transform.fbx`, `_TransformLoop.fbx` | One animation each, for the Animation Editor's FBX import |
+| `export/StandIn.glb` | Same model as glTF, with all five animations |
 | `stand_in.blend` | Blender source at real-world size (2.69 m), with rig, weights, materials and animations |
-| `renders/animations/` | Preview videos of the three animations |
+| `renders/animations/` | Preview videos of the five animations |
 | `textures/roblox/` | Baked maps for each part's SurfaceAppearance, and the NO SIGNAL screen image |
 | `textures/` | The screen, badge and sticker artwork |
 | `renders/` | Previews: `studio_*`, `hall_hallway` (in a dark corridor). `rom_sheet.png` is the deformation test |
@@ -110,34 +111,54 @@ under 10k triangles and has at most 3 bone weights per vertex.
   as on the sheet, put a `SurfaceGui` on the Screen's front face with an `ImageLabel` instead,
   and flip between a few static frames. I haven't been able to test either way in Studio.
 - **The light:** it's a separate part, so it can blink or turn off when he isn't watching.
-- **The glitch into a copy:** the sheet's plan works with this model as it is. Flicker his
-  parts' transparency, offset tinted clones sideways and play a static burst, then swap him
-  for an avatar rig built with `Players:GetHumanoidDescriptionFromUserId`.
-- **The cable:** `Cable1` → `Cable2` → `Cable3` hang off `UpperTorso`. All three animations
-  swing it a beat behind him.
+- **The glitch into a copy:** play `Transform` (he grabs both sides of his monitor and
+  wrenches at it), then `TransformLoop` (the shaking hold) for as long as the glitch lasts.
+  Over it, flicker his parts' transparency, offset tinted clones sideways and play a static
+  burst, then swap him for an avatar rig built with `Players:GetHumanoidDescriptionFromUserId`.
+  `Transform` ends on `TransformLoop`'s first frame, so start the loop when it stops:
+
+  ```lua
+  -- Plays the grab once, then the shaking hold until the game swaps him out.
+  local function playTransform(animator: Animator, grab: Animation, hold: Animation)
+      local grabTrack = animator:LoadAnimation(grab)
+      local holdTrack = animator:LoadAnimation(hold)
+      grabTrack.Looped = false
+      holdTrack.Looped = true
+      grabTrack.Stopped:Once(function()
+          holdTrack:Play(0.1)
+      end)
+      grabTrack:Play(0.15)
+      return holdTrack
+  end
+  ```
+
+  I haven't been able to test this in Studio.
+- **The cable:** `Cable1` → `Cable2` → `Cable3` hang off `UpperTorso`. Every animation swings
+  it a beat behind him.
 
 ## Animations
 
-All three are in place (the Humanoid does the moving), 30 fps, keyed on every frame, and loop
-seamlessly (the last frame equals the first). The legs were solved with IK while animating so
-planted feet don't slide, then written out as plain rotation keys, so nothing needs a
-constraint or a special exporter. He moves "slow, stooped": a tall man with too-long limbs who
-doesn't quite know how to use them.
+All five are in place (the Humanoid does the moving), 30 fps and keyed on every frame. The
+loops loop seamlessly (the last frame equals the first); `Transform` plays once and ends on
+`TransformLoop`'s first frame. The legs, and the hands on the monitor, were solved with IK
+while animating, so planted feet don't slide and his grip stays on the monitor, then written
+out as plain rotation keys, so nothing needs a constraint or a special exporter. He walks
+"slow, stooped", a tall man with too-long limbs, but when he runs, he sprints.
 
 | Action | Length | Loop | Feel |
 |---|---|---|---|
 | `Idle` | 120 frames (4 s) | yes | Stooped and still, swaying a little; the monitor drifts and tips as if he's watching you; his long fingers slowly curl and uncurl, one hand then the other |
 | `Walk` | 48 frames (1.6 s) | yes | Long, slow, stooped strides; the arms hang and barely swing |
-| `Run` | 24 frames (0.8 s) | yes | A lanky lope leaning forward, the arms loose and trailing, never quite in time; the monitor bobs and the cable is flung out behind him |
-
-The cable down his back swings a beat behind his body in all three.
+| `Run` | 22 frames (0.73 s) | yes | A long-legged sprint (after the run reference), leaning in: the knees drive high and the heels kick up behind; the arms pump with the elbows bent, crossing in toward the chest as they come forward and swinging back past the hip, the shoulders twisting against the hips; the wrists and long fingers flop a beat behind; the monitor stays on target and the cable is flung out behind him |
+| `Transform` | 60 frames (2 s) | no | He stiffens and straightens, then both hands fly up and clamp onto the sides of his monitor; it jolts down in his grip and he hunches over it, wrenching it side to side |
+| `TransformLoop` | 60 frames (2 s) | yes | The wrenching hold: the monitor shaking in his hands and twisted side to side, his body heaving and trembling, his fingers clenching |
 
 **Matching speed:** the feet are matched to these ground speeds. At other WalkSpeeds, scale
-the track speed to match, for example `track:AdjustSpeed(humanoid.WalkSpeed / 14.6)` for the
+the track speed to match, for example `track:AdjustSpeed(humanoid.WalkSpeed / 15)` for the
 run.
 
 - **Walk:** 3.3 studs/s
-- **Run:** 14.6 studs/s
+- **Run:** 15 studs/s
 
 **Exporting them yourself:** open `export/StandIn_Roblox.blend`. It matches the model you
 imported (7.8 studs, origin at the pelvis). Pick an action on `StandIn_Rig` and export it with
@@ -177,12 +198,13 @@ python3 standin_textures.py ../textures                  # the screen, badge and
 python3 standin_build.py ../stand_in.blend               # model, rig, weights and baked textures
 python3 standin_render.py ../stand_in.blend ../renders   # previews (--look studio|hall, --views ...)
 python3 standin_rig_check.py ../stand_in.blend ../renders/rom_sheet.png
-python3 standin_animate.py ../stand_in.blend             # keyframe Idle, Walk and Run
+python3 standin_animate.py ../stand_in.blend             # keyframe Idle, Walk, Run, Transform and TransformLoop
 python3 standin_export.py ../stand_in.blend ../export    # FBX (model + one per animation), GLB, Roblox .blend and textures/roblox
 
 # from art/: a contact sheet and preview videos of the animations
 python3 shared/anim_sheet.py stand_in/stand_in.blend StandIn_Rig sheet.png --target 0,0,1.25 --offset=-5.5,-4.5,0.3
 python3 shared/anim_preview.py stand_in/stand_in.blend StandIn_Rig stand_in/renders/animations --target 0,0,1.3 --offset=-5.5,-4.5,0.3 --lens 50 --neutral
+python3 shared/anim_preview.py stand_in/stand_in.blend StandIn_Rig stand_in/renders/animations --actions Transform,TransformLoop --target 0,-0.05,1.75 --offset=-2.6,-3.6,0.15 --lens 50 --neutral
 ```
 
 - **Joints, hands, rig, monitor size and the cable's path:** `standin_common.py`

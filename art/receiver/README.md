@@ -3,8 +3,8 @@
 The floor-4 monster for REM CYCLE: an 8 ft man made entirely of thick, tangled, coiled black
 phone cord. His head is a smoked black glass phone full of dirty water, with its dial torn out
 of the face and set into his chest like a heart. He carries his own handset. Built
-procedurally in Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run, and a
-Call for his fake calls).
+procedurally in Blender 5.2 (`bpy`), rigged and animated for Roblox (Idle, Walk, Run, and
+CallStart and CallLoop for his fake calls).
 
 ![turnaround](renders/studio_turnaround.png)
 
@@ -54,11 +54,11 @@ Call for his fake calls).
 | Path | What it is |
 |---|---|
 | `export/Receiver.fbx` | Rigged model for Roblox's 3D Importer: 7.1 studs tall, origin at the pelvis, textures embedded |
-| `export/Receiver_Roblox.blend` | The same 7.1-stud model and rig with the Idle, Walk, Run and Call actions, for exporting the animations with a Roblox plugin |
-| `export/Receiver_Idle.fbx`, `_Walk.fbx`, `_Run.fbx`, `_Call.fbx` | One animation each, for the Animation Editor's FBX import |
-| `export/Receiver.glb` | Same model as glTF with PBR textures and all four animations |
+| `export/Receiver_Roblox.blend` | The same 7.1-stud model and rig with the Idle, Walk, Run, CallStart and CallLoop actions, for exporting the animations with a Roblox plugin |
+| `export/Receiver_Idle.fbx`, `_Walk.fbx`, `_Run.fbx`, `_CallStart.fbx`, `_CallLoop.fbx` | One animation each, for the Animation Editor's FBX import |
+| `export/Receiver.glb` | Same model as glTF with PBR textures and all five animations |
 | `receiver.blend` | Blender source at real-world size (2.3 m to the top of his head as he stands hunched), with rig, weights, materials and animations |
-| `renders/animations/` | Preview videos of the four animations |
+| `renders/animations/` | Preview videos of the five animations |
 | `textures/roblox/` | The maps for SurfaceAppearance, all 1024 px (see Importing) |
 | `renders/` | Previews: `studio_*` (the pose Studio shows, plus close-ups of the head, dial, hand and feet), `closet_three` and `closet_alarm_three` (in a dark closet, and in the alarm). `rom_sheet.png` is the deformation test |
 | `src/` | Scripts that generate all of the above |
@@ -146,8 +146,33 @@ lighter version is possible with fewer, coarser cords.
   ```
 
   If it wobbles instead of spinning in place, use `CFrame.Angles(angle, 0, 0)` instead. I
-  haven't been able to test this in Studio. The `Call` animation already spins it (one full
-  turn each loop), so playing `Call` is the simplest way to do it.
+  haven't been able to test this in Studio. `CallLoop` already turns it as a rotary dial
+  turns: three digits a loop, each pulled round to the finger stop and whirring back, so
+  playing the call animations is the simplest way to do it.
+- **Fake calls:** play `CallStart` once (he lifts the handset to his head), then `CallLoop`
+  for as long as the call lasts. To hang up, fade back to `Idle` (about 0.4 s) and the
+  handset comes down with the blend:
+
+  ```lua
+  -- Plays the call: the lift once, then the listening loop. Returns a function that hangs up.
+  local function startCall(animator: Animator, lift: Animation, listen: Animation, idle: AnimationTrack)
+      local liftTrack = animator:LoadAnimation(lift)
+      local loopTrack = animator:LoadAnimation(listen)
+      liftTrack.Looped = false
+      loopTrack.Looped = true
+      liftTrack.Stopped:Once(function()
+          loopTrack:Play(0.1) -- CallStart ends on CallLoop's first frame
+      end)
+      liftTrack:Play(0.2)
+      return function()
+          liftTrack:Stop(0.4)
+          loopTrack:Stop(0.4)
+          idle:Play(0.4)
+      end
+  end
+  ```
+
+  I haven't been able to test this in Studio.
 - **Floor-4 alarm:**
 
   ```lua
@@ -175,24 +200,26 @@ lighter version is possible with fewer, coarser cords.
 
 ## Animations
 
-All four are in place (the Humanoid does the moving), 30 fps, keyed on every frame, and loop
-seamlessly (the last frame equals the first). The legs were solved with IK while animating so
-planted feet don't slide, then written out as plain rotation keys, so nothing needs a
-constraint or a special exporter.
+All five are in place (the Humanoid does the moving), 30 fps and keyed on every frame. The
+loops loop seamlessly (the last frame equals the first); `CallStart` plays once and ends on
+`CallLoop`'s first frame. The legs and the handset arm were solved with IK while animating, so
+planted feet don't slide and the handset stays against his head, then written out as plain
+rotation keys, so nothing needs a constraint or a special exporter.
 
 | Action | Length | Loop | Feel |
 |---|---|---|---|
 | `Idle` | 120 frames (4 s) | yes | Hunched, two slow heavy breaths; the phone head tilts slowly as if listening; the claw slowly closes and opens; the handset held still |
 | `Walk` | 36 frames (1.2 s) | yes | "Quick bursts": hunched strides that hurry and catch, so his steps come in spurts; the claw arm swings, the handset arm holds on |
-| `Run` | 20 frames (0.67 s) | yes | A low, lunging charge, head down; the claw reaches ahead and opens wide at the front of each swing, the handset arm pumps |
-| `Call` | 90 frames (3 s) | yes | He lifts the handset to the side of his head, cocks his head to it and listens, and the dial in his chest turns a full circle |
+| `Run` | 20 frames (0.67 s) | yes | A low, loose, predatory run like a cord monster's (after the Ennard reference): bent far over with the phone head held up to look ahead, rolling side to side over each foot; the long arms hang low and wide and swing loosely, the elbows and claw whipping a beat behind like coiled cord, and each footstep sends a springy wobble up through him |
+| `CallStart` | 45 frames (1.5 s) | no | He looks down at the handset, then lifts it: the elbow leads up and out, the forearm folds and the handset turns up against the side of his head, which tips over to meet it |
+| `CallLoop` | 120 frames (4 s) | yes | Listening, the handset against his head: two slow breaths, the head leaning into the handset and easing off, the claw's fingers drumming one after another, and the dial in his chest dialling three digits |
 
 **Matching speed:** the feet are matched to these ground speeds (the walk's average; it comes
 in bursts). At other WalkSpeeds, scale the track speed to match, for example
-`track:AdjustSpeed(humanoid.WalkSpeed / 17.8)` for the run.
+`track:AdjustSpeed(humanoid.WalkSpeed / 15.6)` for the run.
 
 - **Walk:** 4.3 studs/s
-- **Run:** 17.8 studs/s
+- **Run:** 15.6 studs/s
 
 **Exporting them yourself:** open `export/Receiver_Roblox.blend`. It matches the model you
 imported (7.1 studs, origin at the pelvis). Pick an action on `Receiver_Rig` and export it with
@@ -231,12 +258,13 @@ python3 receiver_textures.py ../textures                 # cord, phone parts, gl
 python3 receiver_build.py ../receiver.blend              # model, rig and weights
 python3 receiver_render.py ../receiver.blend ../renders  # previews (--look studio|closet, --alarm, --views ...)
 python3 receiver_rig_check.py ../receiver.blend ../renders/rom_sheet.png
-python3 receiver_animate.py ../receiver.blend            # keyframe Idle, Walk, Run and Call
+python3 receiver_animate.py ../receiver.blend            # keyframe Idle, Walk, Run, CallStart and CallLoop
 python3 receiver_export.py ../receiver.blend ../export   # FBX (model + one per animation), GLB and Roblox .blend (--height-studs 7.11)
 
 # from art/: a contact sheet and preview videos of the animations
-python3 shared/anim_sheet.py receiver/receiver.blend Receiver_Rig sheet.png --actions Idle,Walk,Run,Call
-python3 shared/anim_preview.py receiver/receiver.blend Receiver_Rig receiver/renders/animations --actions Idle,Walk,Run,Call --target 0,0,1.15 --offset=-4.8,-4.0,0.3 --lens 48
+python3 shared/anim_sheet.py receiver/receiver.blend Receiver_Rig sheet.png --actions Idle,Walk,Run,CallStart,CallLoop
+python3 shared/anim_preview.py receiver/receiver.blend Receiver_Rig receiver/renders/animations --actions Idle,Walk,Run --target 0,0,1.15 --offset=-4.8,-4.0,0.3 --lens 48
+python3 shared/anim_preview.py receiver/receiver.blend Receiver_Rig receiver/renders/animations --actions CallStart,CallLoop --target 0.05,-0.1,1.6 --offset=-2.2,-3.0,0.2 --lens 48
 ```
 
 Everything is seeded, so a rebuild gives the same Receiver.
