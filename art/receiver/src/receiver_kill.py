@@ -109,7 +109,7 @@ H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (19, (-14, -4, 6), "o3"), (23, (8, 2, -4)
           (51, (2, 0, 0)), (TWIST, (-12, -8, 6), "o3"), (58, (4, -2, -2), "io"), (64, (6, 0, -4)),
           (RIP - 2, (-6, 0, -2), "o"), (RIP, (16, 0, 2), "o3"), (71, (4, 0, 0), "io"), (DROP, (-6, 0, 4)))
 HEAD_H = T((GRAB, FLINCH["head"](GRAB)), (19, (16, 0, -6), "o3"), (24, (8, -12, 4)), (28, (10, 12, -4)),
-           (32, (6, 0, 0)), (WIND, (10, 0, 0)), (STAB, (8, 0, 0), "o5"), (47, (0, 0, 0)), (52, (-30, 8, 10)),
+           (32, (6, 0, 0)), (WIND, (10, 0, 0)), (STAB, (8, 14, -6), "o5"), (47, (0, 12, -4)), (52, (-30, 8, 10)),
            (TWIST, (10, 0, -6), "o3"), (58, (-20, -8, 10)), (64, (-40, 6, 20)), (RIP, (-10, 0, 0), "o"),
            (DROP, (-30, 0, 10)))
 LOOK = ((GRAB, "phone"), (31, "phone"), (35, "claw", "io"), (WIND, "claw"), (STAB, "wound", "o3"), (50, "wound"),
@@ -161,7 +161,7 @@ def victim(an, ctx, f):
         elbow = pl.point_to_victim(an.pb["LeftLowerArm"].head)
         claw = ctx.get("claw_v", wrist)  # his claw arm, last frame (it's posed after them)
         points = {"phone": socket, "claw": ctx.get("claw_tip_v", socket),
-                  "wound": torso @ Vector((0, 0.1, -1.7)), "ahead": torso @ Vector((0, 1.0, -6))}
+                  "wound": torso @ Vector((-1.1, 0.2, -1.8)), "ahead": torso @ Vector((0, 1.0, -6))}
         v = va.build(f, torso, head=HEAD_H(f), look_at=KA.look_blend(f, LOOK, points), lag={"head": 2})
         down = Vector((0, -0.25, 0))
         targets = {"Right Arm": {"wrist": wrist.lerp(elbow, 0.12) + down, "claw": claw + down,
