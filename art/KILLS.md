@@ -108,26 +108,27 @@ in his chest spinning, then rips the claw out, flings them aside and flicks the 
 | `Drop` | 66 | He throws them |
 | `End` | 100 | |
 
-**CRT Man in disguise: "Choke lift"** (R6 against R6, 198 frames). Used when he kills while
-still disguised as a teammate. The "teammate" stands too still, its head tipped over, staring.
-Then it walks slowly at the player, one heavy stomping step after another, hunched and swaying,
-its arms hanging half out of their sockets and its head locked on them. Its right arm snaps up
-to their throat and it lifts them off the floor one-handed in jolts, holding them up beside
-its head, its arm pulled out of its socket by the weight, while they kick and claw at it. Its
-head tips further and further over as they choke. They go limp; it drops them, its arm sinks
-back down in jerks, and its head snaps upright.
+**CRT Man in disguise: "Choke lift"** (R6 against R6, 206 frames). Used when he kills while
+still disguised as a teammate. The "teammate" stands still for a beat, staring, then walks over
+to the player like a normal player would, stops in front of them, reaches out and grabs them by
+the throat, and lifts them off the floor one-handed in two jolts. It holds them up while they
+kick and claw at its arm, squeezing every few beats, its head tipping over a little more each
+time. They go limp; it opens its hand and they drop, land on their feet, buckle and fall onto
+their back with a knee up, bounce and settle. Its arm comes down in two drops and its head snaps
+upright.
 
-The disguise is animated in stop motion (held poses on fours, about 7 fps, with a little boil
-between holds, like its other disguise animations); the player moves smoothly. Arms are
-dislocated (translated, not just rotated) where it reads better.
+The disguise is stop motion, like its other disguise animations: distinct poses held for 4 to
+6 frames that snap from one to the next with no in-betweens (the walk is four held poses a
+step). Parts are moved as well as rotated, as in your own animations: an arm swinging forward
+crosses in front of the body, a lifted leg rises to fake a bent knee. The player moves smoothly.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 96 | **QTE starts** |
-| `Death` | 150 | **QTE ends** |
-| `Drop` | 166 | |
-| `Reveal` | 190 | Glitch him back into the suit |
-| `End` | 198 | |
+| `Grab` | 104 | **QTE starts** |
+| `Death` | 158 | **QTE ends** |
+| `Drop` | 172 | |
+| `Reveal` | 196 | Glitch him back into the suit |
+| `End` | 206 | |
 
 Both halves are in `stand_in/export/StandIn_DisguisedKill.blend`, a copy of your two-rig file:
 `InternalArmature` is the disguise (action `StandIn_DisguisedKill_Killer`) and

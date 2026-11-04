@@ -174,7 +174,7 @@ the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to exp
 half, line the two up, play them and lock the camera to the player's head.
 
 **In disguise:** `export/StandIn_DisguisedKill.blend` holds an R6-against-R6 kill for when he
-kills while disguised as a teammate: a slow stop-motion walk at the player, then a one-handed
+kills while disguised as a teammate: a stop-motion walk over to the player, then a one-handed
 choke lift (both rigs in one file). See [../KILLS.md](../KILLS.md).
 
 ## Rig
