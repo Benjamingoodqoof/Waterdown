@@ -25,7 +25,7 @@ import os
 import sys
 
 import bpy  # noqa: F401
-from mathutils import Matrix, Vector
+from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)

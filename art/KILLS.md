@@ -1,7 +1,7 @@
 # Kill animations
 
 Each monster has a kill: a pair of animations, one for the monster and one for the R6 player
-it kills, made to play together. They're short (3 to 3.7 s) and keyed pose to pose like a
+it kills, made to play together. They're short (3.3 to 4 s) and keyed pose to pose like a
 hand-animated shot: an anticipation before every big move, fast strikes that ease into their
 holds, arcs on every reach and throw, follow-through (the player's head and limbs drag behind
 when they're jerked around, and the monster's head and spine lag its hips), and weighty falls
@@ -50,63 +50,74 @@ animation up in Studio, and the game can start its screen effects, sounds and QT
 `track:GetMarkerReachedSignal(name)` (or `KeyframeReached` for named keyframes). Frames are at
 30 fps.
 
-**Dewey: "Neck snap"** (90 frames). His head tilts slowly, curious; he sinks and his long arms
-swing back, then he lunges and clamps both rolled-poster claws on the sides of the player's
-head and yanks them up off their feet to his mask, bending down to meet them. He holds them
-there, the mask tilting slowly from side to side as he studies their face, while they claw at
-his arms. A small twist one way, then a violent snap the other. The body goes slack; he lets
-go and it drops in a heap on its side, the head turned the wrong way. His hands stay up a beat.
+**Dewey: "Neck snap"** (100 frames). His head tilts slowly, curious. He sinks low, his neck
+jutting and his long arms swung back behind him with the claws spread; a beat. Then he lunges,
+swings both rolled-poster claws round in a wide arc and clamps them on the sides of the player's
+head, and rises up tall, yanking them off their feet to his mask. He studies their face, the
+mask tilting slowly from side to side, while they claw at his forearms and kick. The wind-up:
+his elbows rise and his whole body coils one way as he turns their head slowly the same way,
+and holds it while they kick wildly; then a violent snap the other way. The body jerks and goes
+slack. He lets go: it lands on its feet, folds and tips back, the head still turned the wrong
+way. His hands stay up a beat, then he straightens, watching it.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 16 | **QTE starts.** The slowed jingle |
-| `Snap` | 46 | **QTE ends.** The crack; cut to black, or slap the posters over the camera ("WELCOME!") |
-| `Drop` | 54 | He lets go |
-| `End` | 90 | |
+| `Grab` | 18 | **QTE starts.** The slowed jingle |
+| `Snap` | 51 | **QTE ends.** The crack; cut to black, or slap the posters over the camera ("WELCOME!") |
+| `Drop` | 60 | He lets go |
+| `End` | 100 | |
 
-**CRT Man: "Collar grab"** (110 frames). He rears back for a beat, then lunges with one long
-step and seizes the player by the collar, yanks them off their feet and holds them out at
-arm's length, face to face with his screen. The monitor cocks slowly from side to side,
-studying them, with a sharp twitch now and then, while they kick and pull at his wrist. They
-convulse and go limp; he holds them a beat, opens his hand, and they drop and crumple at his
-feet. He bends to watch the body.
+**CRT Man: "Collar grab"** (120 frames). His monitor jerks round to the player. He draws
+himself up and back, the monitor tipped back to look down at them, his right hand drawn back; a
+beat. Then one long lunge and he seizes them by the collar, gathers them in and hoists them up
+to his screen at arm's length. The monitor cocks slowly from side to side, studying them, with
+a sharp twitch now and then, while they kick, pull at his wrist and shove at the screen. He
+pulls them in close to it; they convulse and go limp. He holds the body up a beat, tilting the
+monitor at it, lifts it a little and opens his hand: it lands on its feet, the knees buckle and
+it slams onto its back. He steps back and bends to watch it.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 14 | Show the player's avatar on his `Screen` and start the static, getting louder. **QTE starts** |
+| `Grab` | 17 | Show the player's avatar on his `Screen` and start the static, getting louder. **QTE starts** |
 | `Death` | 72 | The static peaks: they die. **QTE ends** |
-| `Drop` | 88 | He lets go |
-| `End` | 110 | |
+| `Drop` | 90 | He lets go |
+| `End` | 120 | |
 
 If he was disguised as a teammate, glitch him back to the suit at `Grab`.
 
-**The Litter: "Bite"** (100 frames). It rears up to its full height, arms flung wide and every
-creature in it bristling, then crashes forward and clamps both hands on the player's
-shoulders, pinning their arms, and hoists them off the floor to its head. The head creature
-draws back, mouth gaping, and bites down on their head; the whole stack thrashes them from side
-to side, then tears them loose and flings them down. The head creature chews, and the
-creatures in the pile turn to look at the body.
+**The Litter: "Bite"** (110 frames). It draws itself up to its full height, leaning back, arms
+flung wide and every creature in it bristling; a beat. Then it crashes forward and clamps both
+hands on the player's shoulders, pinning their arms, and hoists them up to its head. The head
+creature draws slowly back, mouth gaping, the whole stack coiling back with it while they
+strain away and kick; it holds there, trembling, then lunges and bites down on their head. It
+thrashes them left, right and left, swings them back across itself and throws them: they
+tumble and slam down on their back. The head creature chews, and the creatures in the pile turn
+to look at the body.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 14 | **The save window opens:** a teammate's light on the stack now makes it drop them |
-| `Bite` | 36 | The mouth closes over the camera: black, crunch, skittering. **The window closes** |
-| `Throw` | 62 | |
-| `End` | 100 | |
+| `Grab` | 18 | **The save window opens:** a teammate's light on the stack now makes it drop them |
+| `Bite` | 45 | The mouth closes over the camera: black, crunch, skittering. **The window closes** |
+| `Throw` | 70 | |
+| `End` | 110 | |
 
-**The Receiver: "Neck grab and stab"** (100 frames). His phone head snaps round to the player
-and he coils, then lunges and seizes them by the neck with his left hand, hoisting them onto
-their toes. He winds his claw far back, twisting his whole body away, and drives it through
-their torso. They fold over it and look down at it. He leans his phone head in close, the dial
-in his chest spinning, then rips the claw out, flings them aside and flicks the claw clean.
+**The Receiver: "Neck grab and stab"** (120 frames). His phone head snaps round to the player.
+He coils (chest back, hips turned, his left hand drawn back with the fingers splayed), then
+lunges with one long step and seizes them by the neck, straightens up and hoists them off their
+feet while they kick and pull at his wrist. He winds the claw right back: his whole body twists
+away, the arm cocked high behind his shoulder with the claw aimed at them; they see it and
+reach out at it. He holds it, then drives it through their chest. Their body jolts back and the
+knees jerk up; they grab at the arm in them and look down at it. He lifts them higher on it,
+twists it, and they go slack. He pushes it in once more, rips it out with a wide sweep, swings
+them across and flings them aside, then flicks the claw clean and watches them.
 
 | Marker | Frame | Use it for |
 |---|---|---|
-| `Grab` | 12 | **QTE starts** |
-| `Stab` | 35 | Blood on the player's screen. **QTE ends** |
-| `RipOut` | 62 | |
-| `Drop` | 66 | He throws them |
-| `End` | 100 | |
+| `Grab` | 16 | **QTE starts** |
+| `Stab` | 43 | Blood on the player's screen. **QTE ends** |
+| `RipOut` | 68 | |
+| `Drop` | 74 | He throws them |
+| `End` | 120 | |
 
 **CRT Man in disguise: "Choke lift"** (R6 against R6, 206 frames). Used when he kills while
 still disguised as a teammate. The "teammate" stands still for a beat, staring, then walks over
@@ -201,8 +212,8 @@ end
 Listen for the markers on the player's track:
 
 ```lua
-vTrack:GetMarkerReachedSignal("Wrap"):Connect(function()
-    -- start the posters, ...
+vTrack:GetMarkerReachedSignal("Grab"):Connect(function()
+    -- start the QTE, the static, ...
 end)
 ```
 

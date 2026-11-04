@@ -122,7 +122,7 @@ model you imported (8 studs, origin at the pelvis). Pick an action on
 ## Kill
 
 `export/PosterMonster_Kill.fbx` (this monster) and `export/PosterMonster_Kill_Victim.blend` (the R6 player it
-kills, keyed on your R6 rig) play together: Neck snap: he clamps his claws on the player's head, pulls them up to his mask, then snaps their neck and drops them. About 3 to 3.7 s, one-shot, with timeline markers for
+kills, keyed on your R6 rig) play together: Neck snap: he clamps his claws on the player's head, pulls them up to his mask, then snaps their neck and drops them. About 3.3 s (100 frames), one-shot, with timeline markers for
 the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
 half, line the two up, play them and lock the camera to the player's head.
 

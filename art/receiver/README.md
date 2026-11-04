@@ -229,7 +229,7 @@ rotation only.
 ## Kill
 
 `export/Receiver_Kill.fbx` (this monster) and `export/Receiver_Kill_Victim.blend` (the R6 player it
-kills, keyed on your R6 rig) play together: Neck grab and stab: he lifts the player by the neck, drives his claw through their torso, rips it out and flings them aside. About 3 to 3.7 s, one-shot, with timeline markers for
+kills, keyed on your R6 rig) play together: Neck grab and stab: he lifts the player by the neck, drives his claw through their torso, rips it out and flings them aside. About 4 s (120 frames), one-shot, with timeline markers for
 the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
 half, line the two up, play them and lock the camera to the player's head.
 
