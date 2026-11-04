@@ -100,6 +100,11 @@ class Victim:
     def head_world(self):
         return self.parts()["Head"]
 
+    def T_torso_space(self, limb):
+        """A limb's rotation at its joint, in the torso's axes (the inverse of rotate())."""
+        _, _, c0, _ = JOINTS[LIMB_JOINT[limb]]
+        return c0.to_3x3() @ self.T[limb].to_3x3() @ c0.to_3x3().inverted()
+
     def hang_from_head(self, head_cf, torso_rot):
         """Puts the head at head_cf (HRP space) with the torso turned to torso_rot below it, the
         neck taking up the difference."""
@@ -474,7 +479,7 @@ R6_REST = {"Torso": (0, 3, 0), "Head": (0, 4.5, 0), "Right Arm": (1.5, 3, 0), "L
 R6_ORDER = ("Torso", "Head", "Right Arm", "Left Arm", "Right Leg", "Left Leg")
 
 
-def write_r6_blend(template, out_blend, parts_frames, action_name, markers, monster=None, note=""):
+def write_r6_blend(template, out_blend, parts_frames, action_name, markers, monster=None, note="", ref=None):
     """Keys the victim onto the R6 rig in `template` (a copy of the user's Blender_R6.blend: its
     InternalArmature has a bone per R6 part, in studs, facing +Y) and saves it as out_blend at
     30 fps. The InternalArmature's constraints to the control rig are muted, so the keys drive
@@ -541,6 +546,16 @@ def write_r6_blend(template, out_blend, parts_frames, action_name, markers, mons
         rig.animation_data_create()
         rig.animation_data.action = dst.actions[0]
         rig.matrix_world = Matrix.Scale(1.0 / k, 4) @ Matrix.Translation(-Vector((root.x, root.y - distance * k, 0.0)))
+    if ref:  # another R6 player, as plain blocks keyed per frame (in this rig's HRP space)
+        ref_frames, ref_name, ref_colors = ref
+        col = bpy.data.collections.new(f"{ref_name} (reference)")
+        sc.collection.children.link(col)
+        boxes = r6_boxes(ref_name.replace(" ", ""), ref_colors, 1.0, col)
+        for f, parts in enumerate(ref_frames):
+            for part, ob in boxes.items():
+                ob.matrix_world = AXES @ Matrix.Translation((0, 3, 0)) @ parts[part]
+                for path in ("location", "rotation_euler", "scale"):
+                    ob.keyframe_insert(path, frame=f)
     txt = bpy.data.texts.new("KILL_README")
     txt.write(note)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(out_blend))
@@ -570,3 +585,110 @@ def crumple(v, f, start, end, from_torso, lying, look_at=None, side=1.0):
     if look_at is not None:
         v.look(look_at, roll=-15 * limp * side, limit=40 + 20 * (1 - limp))
     return v
+
+
+def r6_boxes(prefix, colors, scale=1.0, collection=None):
+    """Blocky R6 parts named <prefix>_<part>, their mesh in the part's own Roblox axes."""
+    obs = {}
+    for part, size in SIZES.items():
+        me = bpy.data.meshes.new(f"{prefix}_{part}")
+        sx, sy, sz = (x * 0.5 for x in size)
+        verts = [(x, y, z) for x in (-sx, sx) for y in (-sy, sy) for z in (-sz, sz)]
+        me.from_pydata(verts, [], [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)])
+        me.validate()
+        mat = bpy.data.materials.new(f"M_{prefix}_{part}")
+        try:
+            mat.use_nodes = True
+        except AttributeError:
+            pass
+        b = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+        b.inputs["Base Color"].default_value = (*colors[part], 1)
+        b.inputs["Roughness"].default_value = 0.6
+        me.materials.append(mat)
+        ob = bpy.data.objects.new(f"{prefix}_{part}", me)
+        (collection or bpy.context.scene.collection).objects.link(ob)
+        obs[part] = ob
+    return obs
+
+
+# where each R6 limb joins the torso, and the point at its far end (a hand's grip, a foot's
+# sole), both in the torso's frame with the limb at rest
+LIMB_JOINT_POS = {"Right Arm": Vector((1, 0.5, 0)), "Left Arm": Vector((-1, 0.5, 0)),
+                  "Right Leg": Vector((1, -1, 0)), "Left Leg": Vector((-1, -1, 0))}
+LIMB_END = {"Right Arm": Vector((1.5, -0.9, 0)), "Left Arm": Vector((-1.5, -0.9, 0)),
+            "Right Leg": Vector((0.5, -3, 0)), "Left Leg": Vector((-0.5, -3, 0))}
+
+
+def reach_r6(v, limb, target, twist=0.0):
+    """Turns an R6 arm or leg about its joint so its far end points at `target` (HRP space),
+    as near as its length allows (R6 limbs don't bend)."""
+    t3 = v.torso.to_3x3()
+    joint = v.torso @ LIMB_JOINT_POS[limb]
+    want = t3.inverted() @ (target - joint)
+    rest = LIMB_END[limb] - LIMB_JOINT_POS[limb]
+    if want.length < 1e-4:
+        return
+    q = rest.rotation_difference(want)
+    R = q.to_matrix() @ Matrix.Rotation(math.radians(twist), 3, rest.normalized())
+    v.rotate(limb, R.to_4x4())
+
+
+def limb_end(v, limb):
+    return v.torso @ (LIMB_JOINT_POS[limb] + (v.T_torso_space(limb) @ (LIMB_END[limb] - LIMB_JOINT_POS[limb])))
+
+
+def dislocate(v, limb, offset):
+    """Pulls a limb out of its socket by `offset` (studs, in the torso's axes), on top of its
+    rotation: Roblox Motor6D transforms can translate as well as rotate."""
+    _, _, c0, _ = JOINTS[LIMB_JOINT[limb]]
+    r = c0.to_3x3().to_4x4()
+    v.T[limb] = r.inverted() @ Matrix.Translation(Vector(offset)) @ r @ v.T[limb]
+
+
+def reach_r6_off(v, limb, target, offset):
+    """reach_r6 for a dislocated limb: aims from the moved joint, then moves it."""
+    t3 = v.torso.to_3x3()
+    joint = v.torso @ (LIMB_JOINT_POS[limb] + Vector(offset))
+    want = t3.inverted() @ (target - joint)
+    rest = LIMB_END[limb] - LIMB_JOINT_POS[limb]
+    if want.length > 1e-4:
+        v.rotate(limb, rest.rotation_difference(want).to_matrix().to_4x4())
+    dislocate(v, limb, offset)
+
+
+def key_r6_rig(arm, parts_frames, action_name):
+    """Keys an R6 InternalArmature (bones in studs, facing +Y, constraints muted) from part
+    CFrames in its own HRP space, one key per frame."""
+    for pb in arm.pose.bones:
+        for c in pb.constraints:
+            c.mute = True
+        pb.rotation_mode = "QUATERNION"
+    arm.animation_data_create()
+    old = bpy.data.actions.get(action_name)
+    if old:
+        bpy.data.actions.remove(old)
+    act = bpy.data.actions.new(action_name)
+    act.use_fake_user = True
+    arm.animation_data.action = act
+    prev = {}
+    for f, parts in enumerate(parts_frames):
+        arm.pose.bones["HumanoidRootPart"].matrix_basis = Matrix.Identity(4)
+        bpy.context.view_layer.update()
+        for name in R6_ORDER:
+            pb = arm.pose.bones[name]
+            cur = Matrix.Translation((0, 3, 0)) @ parts[name]
+            D = AXES @ cur @ Matrix.Translation(R6_REST[name]).inverted() @ AXES.inverted()
+            pb.matrix = D @ pb.bone.matrix_local
+            pb.scale = (1, 1, 1)
+            bpy.context.view_layer.update()
+        for pb in arm.pose.bones:
+            q = pb.rotation_quaternion.copy()
+            if pb.name in prev and prev[pb.name].dot(q) < 0:
+                q.negate()
+                pb.rotation_quaternion = q
+            prev[pb.name] = q.copy()
+            pb.keyframe_insert("rotation_quaternion", frame=f, group=pb.name)
+            pb.keyframe_insert("location", frame=f, group=pb.name)
+    act.use_frame_range = True
+    act.frame_start, act.frame_end = 0, len(parts_frames) - 1
+    return act

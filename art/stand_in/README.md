@@ -173,6 +173,10 @@ kills, keyed on your R6 rig) play together: Collar grab: he grabs the player by 
 the game's screen effects and QTE. See [../KILLS.md](../KILLS.md) for how to export the player's
 half, line the two up, play them and lock the camera to the player's head.
 
+**In disguise:** `export/StandIn_DisguisedKill.blend` holds an R6-against-R6 kill for when he
+kills while disguised as a teammate: a slow stop-motion walk at the player, then a one-handed
+choke lift (both rigs in one file). See [../KILLS.md](../KILLS.md).
+
 ## Rig
 
 40 bones. The limb bones run along the limbs, so they're easy to animate in Blender:

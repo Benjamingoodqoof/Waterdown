@@ -108,6 +108,35 @@ in his chest spinning, then rips the claw out, flings them aside and flicks the 
 | `Drop` | 66 | He throws them |
 | `End` | 100 | |
 
+**CRT Man in disguise: "Choke lift"** (R6 against R6, 198 frames). Used when he kills while
+still disguised as a teammate. The "teammate" stands too still, its head tipped over, staring.
+Then it walks slowly at the player, one heavy stomping step after another, hunched and swaying,
+its arms hanging half out of their sockets and its head locked on them. Its right arm snaps up
+to their throat and it lifts them off the floor one-handed in jolts, holding them up beside
+its head, its arm pulled out of its socket by the weight, while they kick and claw at it. Its
+head tips further and further over as they choke. They go limp; it drops them, its arm sinks
+back down in jerks, and its head snaps upright.
+
+The disguise is animated in stop motion (held poses on fours, about 7 fps, with a little boil
+between holds, like its other disguise animations); the player moves smoothly. Arms are
+dislocated (translated, not just rotated) where it reads better.
+
+| Marker | Frame | Use it for |
+|---|---|---|
+| `Grab` | 96 | **QTE starts** |
+| `Death` | 150 | **QTE ends** |
+| `Drop` | 166 | |
+| `Reveal` | 190 | Glitch him back into the suit |
+| `End` | 198 | |
+
+Both halves are in `stand_in/export/StandIn_DisguisedKill.blend`, a copy of your two-rig file:
+`InternalArmature` is the disguise (action `StandIn_DisguisedKill_Killer`) and
+`InternalArmature.001` the player (action `StandIn_DisguisedKill_Victim`). Their constraints to
+the control rigs are muted and the control rigs hidden; your poses are still on the control
+rigs. Place the killer's HumanoidRootPart **1.9 studs** in front of the player's, facing them;
+its body starts 6 studs further back and walks onto it, so trigger the kill when the disguise
+is about 8 studs away (or hide the gap with the screen effects).
+
 If the player escapes a QTE, stop both tracks (with a short fade) and unanchor them.
 
 ## Setting up in Studio
@@ -130,6 +159,7 @@ both for the kill so nothing pushes them apart.
 | CRT Man | 3.6 |
 | The stack | 3.6 |
 | The Receiver | 3.8 |
+| CRT Man in disguise | 1.9 (its body walks in from 6 studs further back) |
 
 On the server:
 
