@@ -255,7 +255,7 @@ How the parts follow the bones:
   legs are rigid on its slot.
 - **The mass and what juts out of it:** blend between the nearest body and limb bones.
 
-**Litterling:** 18 bones. `Root` (at the body's height) → `Body` → `Leg{L|R}{1-4}A` (hip to
+**Litterling:** 19 bones. `Root` (at the body's height) → `HumanoidRootNode` (static: Roblox doesn't animate the bone under the root) → `Body` → `Leg{L|R}{1-4}A` (hip to
 knee) → `Leg{L|R}{1-4}B` (knee to claw). Leg 1 is the front pair and leg 4 the back.
 
 ## Rebuilding
