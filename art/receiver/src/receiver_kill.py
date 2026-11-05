@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """The Receiver's kill, keyed pose to pose.
 
-His phone head snaps round to the player. He coils: chest back, hips turned, his left arm drawn
-back with the fingers splayed. Then he lunges with one long step and seizes them by the neck,
-straightens up and hoists them off their feet while they kick and pull at his wrist. He winds
-the claw right back: his whole body twists away, the arm cocked high behind his shoulder, the
-claw aimed at them. They see it and reach out at it. He holds it, trembling, then drives it
-through their chest. Their body jolts back, the knees jerk up; they grab at the arm in them and
-look down at it. He twists it. They go slack. He pushes it in once more, rips it out with a wide
-sweep, swings them across and flings them aside, then flicks the claw clean and watches them.
+His phone head snaps round to the player. He coils: chest back, hips turned, his free right hand
+drawn back with the fingers splayed. Then he lunges with one long step and seizes them by the
+neck with it, straightens up and hoists them off their feet while they kick and pull at his
+wrist. He raises his left arm (the one holding the handset) high: the elbow out to the side,
+the claw up above his head and hooked toward them, his chest leaning back and turned away.
+They see it and reach out at it. He holds it, then drives it down through their chest. Their
+body jolts back, the knees jerk up; they grab at the arm in them and look down at it. He lifts
+them higher on it, twists it, and they go slack. He pushes it in once more, rips it out with a
+wide sweep, swings them across and flings them aside, then flicks the claw clean and watches.
 
 Writes the Receiver's "Kill" action into the blend, and the player's half on the R6 rig
 (export/Receiver_Kill_Victim.blend). Both start together, with the player's HumanoidRootPart
@@ -22,7 +23,7 @@ Usage: python3 receiver_kill.py BLEND EXPORT_DIR PREVIEW_BLEND
 import os
 import sys
 
-import bpy  # noqa: F401
+import bpy
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -46,35 +47,38 @@ CHEST_IN = Vector((0.0, 0.2, -0.05))  # where his wrist ends up: in the middle o
 SIDES = (("Left", 1.0), ("Right", -1.0))
 
 # ---------------------------------------------------------------- his key poses
-# world-axis degrees: x leans forward, y tips to his left, z turns his chest to his left
+# world-axis degrees: x leans forward, y tips to his left, z turns his chest to his left.
+# His right hand (free) holds their neck; his left (holding the handset) is the claw.
 BODY = {
-    "LowerTorso": T((0, (2, 0, 0)), (COIL, (-6, 0, 8)), (COIL + 3, (-7, 0, 9)), (GRAB, (12, 0, -10), "o3"),
-                    (LIFTED, (0, 0, -4)), (34, (-2, 0, -10)), (WIND, (-4, 2, -18), "i"), (STAB, (9, 0, 12), "o5"),
-                    (46, (7, 0, 9)), (57, (0, 0, 9), "io"), (RIP - 2, (6, 0, 13)), (RIP, (4, 0, -12), "o3"), (DROP - 2, (2, 0, -15), "io"),
-                    (DROP, (8, 0, 16), "o3"), (82, (8, 0, 10)), (96, (6, 0, 4)), (LENGTH, (5, 0, 2))),
-    "UpperTorso": T((0, (4, 0, 0)), (COIL, (-14, -4, 18), "io"), (COIL + 3, (-15, -4, 20)), (GRAB, (18, 0, -22), "o3"),
-                    (LIFTED, (-2, 6, -6), "io"), (34, (-4, 4, -22)), (WIND, (-10, 6, -42), "i"),
-                    (STAB, (12, -4, 28), "o5"), (46, (8, -2, 22)), (TWIST, (4, 2, 24)), (57, (-2, 4, 22), "io"), (RIP - 2, (6, 0, 26)),
-                    (RIP, (6, 0, -20), "o3"), (DROP - 2, (4, 0, -28), "io"), (DROP, (14, 0, 28), "o3"),
-                    (82, (14, 0, 16)), (96, (12, 0, 4)), (LENGTH, (10, 0, 0))),
+    "LowerTorso": T((0, (2, 0, 0)), (COIL, (-6, 0, -8)), (COIL + 3, (-7, 0, -9)), (GRAB, (12, 0, 10), "o3"),
+                    (LIFTED, (0, 0, 4)), (34, (-2, 0, 6)), (WIND, (-4, -2, 8), "i"), (STAB, (9, 0, -12), "o5"),
+                    (46, (7, 0, -9)), (57, (0, 0, -9), "io"), (RIP - 2, (6, 0, -13)), (RIP, (4, 0, 12), "o3"),
+                    (DROP - 2, (2, 0, 15), "io"), (DROP, (8, 0, -16), "o3"), (82, (8, 0, -10)), (96, (6, 0, -4)),
+                    (LENGTH, (5, 0, -2))),
+    "UpperTorso": T((0, (4, 0, 0)), (COIL, (-14, 4, -18), "io"), (COIL + 3, (-15, 4, -20)), (GRAB, (18, 0, 22), "o3"),
+                    (LIFTED, (-2, -6, 6), "io"), (34, (-6, -6, 12)), (WIND, (-12, -9, 18), "i"),
+                    (STAB, (14, 4, -24), "o5"), (46, (10, 2, -20)), (TWIST, (6, -2, -22)), (57, (-2, -4, -20), "io"),
+                    (RIP - 2, (6, 0, -24)), (RIP, (6, 0, 20), "o3"), (DROP - 2, (4, 0, 28), "io"), (DROP, (14, 0, -28), "o3"),
+                    (82, (14, 0, -16)), (96, (12, 0, -4)), (LENGTH, (10, 0, 0))),
     # the phone head: keyed cocks on top of staying aimed at the player (AIM)
-    "Head": T((0, (0, 0, 0)), (2, (-8, -16, 0), "o3"), (COIL, (-10, -10, 0)), (GRAB, (-12, 10, 0), "o3"),
-              (LIFTED, (-6, 22, 0), "io"), (34, (-6, 12, 0)), (WIND, (-6, -16, 0)), (STAB, (-14, 0, 0), "o3"),
-              (48, (-14, 24, 0), "io"), (TWIST, (-12, -18, 0), "o"), (62, (-12, 16, 0)), (RIP, (-6, 0, 0)),
-              (DROP, (0, 0, 0)), (90, (0, 20, 0), "io"), (104, (0, 26, 0)), (LENGTH, (0, 30, 0))),
+    "Head": T((0, (0, 0, 0)), (2, (-8, 16, 0), "o3"), (COIL, (-10, 10, 0)), (GRAB, (-12, -10, 0), "o3"),
+              (LIFTED, (-6, -22, 0), "io"), (34, (-6, -12, 0)), (WIND, (-6, 16, 0)), (STAB, (-14, 0, 0), "o3"),
+              (48, (-14, -24, 0), "io"), (TWIST, (-12, 18, 0), "o"), (62, (-12, -16, 0)), (RIP, (-6, 0, 0)),
+              (DROP, (0, 0, 0)), (90, (0, -20, 0), "io"), (104, (0, -26, 0)), (LENGTH, (0, -30, 0))),
 }
 LAGS = {"UpperTorso": 1, "Head": 2}
 AIM = T((0, 0.4), (3, 1.0, "o3"), (LENGTH, 1.0))
 PELVIS = T((0, (0, 0, 0)), (COIL, (0, 0.08, -0.08)), (COIL + 3, (0, 0.09, -0.09)), (GRAB, (0, -0.26, -0.12), "o3"),
            (LIFTED, (0, -0.18, 0.0), "io"), (WIND, (0, -0.08, -0.05), "i"), (STAB, (0, -0.22, -0.10), "o5"),
-           (RIP - 2, (0, -0.22, -0.09)), (RIP, (0, -0.22, -0.06), "o3"), (DROP, (0.04, -0.24, -0.07), "o3"),
+           (RIP - 2, (0, -0.22, -0.09)), (RIP, (0, -0.22, -0.06), "o3"), (DROP, (-0.04, -0.24, -0.07), "o3"),
            (100, (0, -0.22, -0.04)))
-LEFT_FOOT = T((0, (0, 0, 0)), (COIL + 2, (0, 0.02, 0)), (13, (0, -0.2, 0.14), "o"), (GRAB, (0, -0.44, 0), "i"), arc=True)
-RIGHT_FOOT = T((0, (0, 0, 0)), (COIL, (0, 0.04, 0)), (GRAB, (0, -0.06, 0), "o"), (STAB, (0, -0.12, 0), "o"))
-FINGERS_R = T((0, 6), (WIND - 8, 0), (WIND, -22, "i"), (STAB - 1, -12), (STAB, -6, "o"), (RIP + 2, -12),
-              (72, 20, "o"), (86, 30), (89, -6, "o3"), (93, 26, "o"), (97, -4, "o3"), (LENGTH, 12))
-FINGERS_L = T((0, 6), (COIL, -22), (GRAB - 1, -22), (GRAB, 50, "o3"), (DROP - 1, 50), (DROP + 1, -14, "o3"), (90, 8))
-HOLD = Vector((0.14, -1.12, 1.46))  # where his left hand holds their neck once they're up
+RIGHT_FOOT = T((0, (0, 0, 0)), (COIL + 2, (0, 0.02, 0)), (13, (0, -0.2, 0.14), "o"), (GRAB, (0, -0.44, 0), "i"), arc=True)
+LEFT_FOOT = T((0, (0, 0, 0)), (COIL, (0, 0.04, 0)), (GRAB, (0, -0.06, 0), "o"), (STAB, (0, -0.12, 0), "o"))
+FINGERS_CLAW = T((0, 6), (WIND - 8, 4), (WIND, 16, "i"), (STAB - 1, -10, "o"), (STAB, -6, "o"), (RIP + 2, -12),
+                 (72, 20, "o"), (86, 30), (89, -6, "o3"), (93, 26, "o"), (97, -4, "o3"), (LENGTH, 12))
+FINGERS_GRAB = T((0, 6), (COIL, -22), (GRAB - 1, -22), (GRAB, 50, "o3"), (DROP - 1, 50), (DROP + 1, -14, "o3"), (90, 8))
+HOLD = Vector((-0.14, -1.12, 1.46))  # where his right hand holds their neck once they're up
+COCKED = Vector((0.76, 0.1, 2.4))  # the claw raised above his head (rest-relative to his chest)
 
 
 def dial(t):
@@ -102,47 +106,47 @@ def monster_body(an, f, ctx):
 
 
 # ---------------------------------------------------------------- the player's key poses
-FLINCH = KA.flinch_tracks(2, 12, "Right Leg")
-# held by the neck (+pitch tips the top back, +yaw turns to their left)
-H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (19, (-14, -4, 6), "o3"), (23, (8, 2, -4), "o"), (LIFTED, (0, 0, 3)),
-          (31, (-5, 4, -3)), (35, (3, 8, 3)), (WIND, (-2, 14, 0)), (STAB, (-24, 4, -2), "o5"), (47, (8, 2, 2), "io"),
-          (51, (2, 0, 0)), (TWIST, (-12, -8, 6), "o3"), (58, (4, -2, -2), "io"), (64, (6, 0, -4)),
-          (RIP - 2, (-6, 0, -2), "o"), (RIP, (16, 0, 2), "o3"), (71, (4, 0, 0), "io"), (DROP, (-6, 0, 4)))
-HEAD_H = T((GRAB, FLINCH["head"](GRAB)), (19, (16, 0, -6), "o3"), (24, (8, -12, 4)), (28, (10, 12, -4)),
-           (32, (6, 0, 0)), (WIND, (10, 0, 0)), (STAB, (8, 14, -6), "o5"), (47, (0, 12, -4)), (52, (-30, 8, 10)),
-           (TWIST, (10, 0, -6), "o3"), (58, (-20, -8, 10)), (64, (-40, 6, 20)), (RIP, (-10, 0, 0), "o"),
-           (DROP, (-30, 0, 10)))
+FLINCH = KA.flinch_tracks(2, 12, "Left Leg")
+# held by the neck (+pitch tips the top back, +yaw turns to their left); the claw is on their right
+H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (19, (-14, 4, -6), "o3"), (23, (8, -2, 4), "o"), (LIFTED, (0, 0, -3)),
+          (31, (-5, -4, 3)), (35, (3, -8, -3)), (WIND, (-2, -14, 0)), (STAB, (-24, -4, 2), "o5"), (47, (8, -2, -2), "io"),
+          (51, (2, 0, 0)), (TWIST, (-12, 8, -6), "o3"), (58, (4, 2, 2), "io"), (64, (6, 0, 4)),
+          (RIP - 2, (-6, 0, 2), "o"), (RIP, (16, 0, -2), "o3"), (71, (4, 0, 0), "io"), (DROP, (-6, 0, -4)))
+HEAD_H = T((GRAB, FLINCH["head"](GRAB)), (19, (16, 0, 6), "o3"), (24, (8, 12, -4)), (28, (10, -12, 4)),
+           (32, (6, 0, 0)), (WIND, (10, 0, 0)), (STAB, (8, -14, 6), "o5"), (47, (0, -12, 4)), (52, (-30, -8, -10)),
+           (TWIST, (10, 0, 6), "o3"), (58, (-20, 8, -10)), (64, (-40, -6, -20)), (RIP, (-10, 0, 0), "o"),
+           (DROP, (-30, 0, -10)))
 LOOK = ((GRAB, "phone"), (31, "phone"), (35, "claw", "io"), (WIND, "claw"), (STAB, "wound", "o3"), (50, "wound"),
         (60, "ahead", "io"))
-# hands: on his wrist, reaching at the cocked claw, flung out by the stab, grabbing the arm in
+# hands: on his wrist, reaching at the raised claw, flung out by the stab, grabbing the arm in
 # them, slipping off ("wrist", "reach", "claw" are worked out each frame)
 ARMS = {
-    "Right Arm": KA.PoseKeys(
-        (GRAB, ((-0.15, 0.5, -0.85), (-0.2, 0.3, -0.3))), (GRAB + 3, ("wrist", (-0.25, 0.25, -0.45)), "o"),
-        (23, ("wrist", (-0.2, 0.05, -0.4))), (26, ("wrist", (-0.25, 0.3, -0.45))), (30, ("wrist", (-0.2, 0.05, -0.4))),
-        (34, ("reach", (-0.1, 0.35, -0.3)), "o"), (WIND, ("reach", (-0.05, 0.45, -0.25))),
-        (STAB, ((0.85, 0.3, -0.4), (0, 0.2, 0)), "o3"), (47, ("claw", (-0.2, 0.15, -0.45)), "o"),
-        (TWIST, ("claw", (-0.15, 0.1, -0.4))), (56, ((0.5, -0.6, -0.5), (0, 0.1, 0)), "o"),
-        (60, ("claw", (-0.1, 0.0, -0.3))), (65, ((0.12, -1, -0.15), (0, 0, 0)), "i"),
-        (RIP, ((0.1, -0.8, -0.6), (0, 0, 0)), "o"), (DROP, ((0.2, -0.9, -0.3), (0, 0, 0)))),
     "Left Arm": KA.PoseKeys(
-        (GRAB, ((0.2, 0.6, -0.8), (0.2, 0.35, -0.3))), (GRAB + 2, ("wrist", (0.25, 0.25, -0.45)), "o"),
-        (22, ("wrist", (0.2, 0.35, -0.45))), (27, ("wrist", (0.25, 0.1, -0.4))), (31, ("wrist", (0.2, 0.3, -0.45))),
-        (WIND, ("wrist", (0.2, 0.15, -0.4))), (STAB, ((-0.85, 0.35, -0.35), (0, 0.2, 0)), "o3"),
-        (46, ((-0.7, 0.0, -0.5), (0, 0.1, 0))), (50, ("wrist", (0.2, 0.1, -0.4))),
-        (TWIST, ((-0.6, 0.1, -0.6), (0, 0.1, 0)), "o"), (58, ("wrist", (0.15, 0.0, -0.3))),
-        (63, ((-0.1, -1, -0.1), (0, 0, 0)), "i"), (RIP, ((-0.1, -0.8, -0.55), (0, 0, 0)), "o"),
-        (DROP, ((-0.2, -0.9, -0.3), (0, 0, 0)))),
+        (GRAB, ((0.15, 0.5, -0.85), (0.2, 0.3, -0.3))), (GRAB + 3, ("wrist", (0.25, 0.25, -0.45)), "o"),
+        (23, ("wrist", (0.2, 0.05, -0.4))), (26, ("wrist", (0.25, 0.3, -0.45))), (30, ("wrist", (0.2, 0.05, -0.4))),
+        (34, ("reach", (0.1, 0.35, -0.3)), "o"), (WIND, ("reach", (0.05, 0.45, -0.25))),
+        (STAB, ((-0.85, 0.3, -0.4), (0, 0.2, 0)), "o3"), (47, ("claw", (0.2, 0.15, -0.45)), "o"),
+        (TWIST, ("claw", (0.15, 0.1, -0.4))), (56, ((-0.5, -0.6, -0.5), (0, 0.1, 0)), "o"),
+        (60, ("claw", (0.1, 0.0, -0.3))), (65, ((-0.12, -1, -0.15), (0, 0, 0)), "i"),
+        (RIP, ((-0.1, -0.8, -0.6), (0, 0, 0)), "o"), (DROP, ((-0.2, -0.9, -0.3), (0, 0, 0)))),
+    "Right Arm": KA.PoseKeys(
+        (GRAB, ((-0.2, 0.6, -0.8), (-0.2, 0.35, -0.3))), (GRAB + 2, ("wrist", (-0.25, 0.25, -0.45)), "o"),
+        (22, ("wrist", (-0.2, 0.35, -0.45))), (27, ("wrist", (-0.25, 0.1, -0.4))), (31, ("wrist", (-0.2, 0.3, -0.45))),
+        (WIND, ("wrist", (-0.2, 0.15, -0.4))), (STAB, ((0.85, 0.35, -0.35), (0, 0.2, 0)), "o3"),
+        (46, ((0.7, 0.0, -0.5), (0, 0.1, 0))), (50, ("wrist", (-0.2, 0.1, -0.4))),
+        (TWIST, ((0.6, 0.1, -0.6), (0, 0.1, 0)), "o"), (58, ("wrist", (-0.15, 0.0, -0.3))),
+        (63, ((0.1, -1, -0.1), (0, 0, 0)), "i"), (RIP, ((0.1, -0.8, -0.55), (0, 0, 0)), "o"),
+        (DROP, ((0.2, -0.9, -0.3), (0, 0, 0)))),
 }
 HANGL = {"Right Leg": ((0.06, -1, 0.1), (0, 0, 0)), "Left Leg": ((-0.06, -1, 0.1), (0, 0, 0))}
 LEGS = {
     leg: KA.PoseKeys(
-        (GRAB, (((0.05, -0.95, 0.35) if leg == "Right Leg" else (-0.05, -0.95, -0.3)), (0, 0, 0))),
+        (GRAB, (((-0.05, -0.95, 0.35) if leg == "Left Leg" else (0.05, -0.95, -0.3)), (0, 0, 0))),
         (GRAB + 3, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "o"),
-        *KA.kick_keys(leg, 19, 39, beat=4, a0=1.0, a1=0.85, phase=0 if leg == "Right Leg" else 1),
+        *KA.kick_keys(leg, 19, 39, beat=4, a0=1.0, a1=0.85, phase=0 if leg == "Left Leg" else 1),
         (STAB, ((sx * 0.12, -0.5, -0.85), (0, 0.5, -0.15)), "o3"), (46, ((sx * 0.1, -0.6, -0.8), (0, 0.45, -0.12))),
         (51, HANGL[leg], "io"),
-        (TWIST, (((0.12, -0.65, -0.7), (0, 0.35, -0.1)) if leg == "Right Leg" else ((-0.05, -1, -0.2), (0, 0, 0))), "o3"),
+        (TWIST, (((-0.12, -0.65, -0.7), (0, 0.35, -0.1)) if leg == "Left Leg" else ((0.05, -1, -0.2), (0, 0, 0))), "o3"),
         (58, HANGL[leg], "io"), (64, ((sx * 0.05, -1, 0.05), (0, 0, 0))), (RIP, ((sx * 0.05, -0.95, 0.3), (0, 0, 0)), "o"),
         (DROP, ((sx * 0.05, -1, 0.0), (0, 0, 0))))
     for leg, sx in (("Right Leg", 1), ("Left Leg", -1))
@@ -155,38 +159,38 @@ def victim(an, ctx, f):
     if f <= GRAB:
         return KA.apply_flinch(va, f, FLINCH, look_at=socket)
     if f < DROP:
-        grip = pl.point_to_victim(an.pb["LeftHand"].matrix @ ctx["grip_local"])
+        grip = pl.point_to_victim(an.pb["RightHand"].matrix @ ctx["grip_local"])
         torso = va.torso_from_grip(grip, NECK, H_ROT(f))
-        wrist = pl.point_to_victim(an.pb["LeftLowerArm"].tail)
-        elbow = pl.point_to_victim(an.pb["LeftLowerArm"].head)
+        wrist = pl.point_to_victim(an.pb["RightLowerArm"].tail)  # his hand on their neck
+        elbow = pl.point_to_victim(an.pb["RightLowerArm"].head)
         claw = ctx.get("claw_v", wrist)  # his claw arm, last frame (it's posed after them)
         points = {"phone": socket, "claw": ctx.get("claw_tip_v", socket),
-                  "wound": torso @ Vector((-1.1, 0.2, -1.8)), "ahead": torso @ Vector((0, 1.0, -6))}
+                  "wound": torso @ Vector((1.1, 0.2, -1.8)), "ahead": torso @ Vector((0, 1.0, -6))}
         v = va.build(f, torso, head=HEAD_H(f), look_at=KA.look_blend(f, LOOK, points), lag={"head": 2})
         down = Vector((0, -0.25, 0))
-        targets = {"Right Arm": {"wrist": wrist.lerp(elbow, 0.12) + down, "claw": claw + down,
-                                 "reach": ctx.get("claw_tip_v", socket)},
-                   "Left Arm": {"wrist": wrist.lerp(elbow, 0.45) + down, "claw": claw + down,
-                                "reach": ctx.get("claw_tip_v", socket)}}
+        targets = {"Left Arm": {"wrist": wrist.lerp(elbow, 0.12) + down, "claw": claw + down,
+                                "reach": ctx.get("claw_tip_v", socket)},
+                   "Right Arm": {"wrist": wrist.lerp(elbow, 0.45) + down, "claw": claw + down,
+                                 "reach": ctx.get("claw_tip_v", socket)}}
         KA.pose_limbs(va, v, f, ARMS, LEGS, targets)
         ctx["drop_torso"], ctx["drop_rot"] = torso, H_ROT(f)
         ctx["drop_limbs"] = KA.limb_dirs(v)
         return v
-    # flung aside to his left (their right): tumbling, onto their back, a bounce and a slide
+    # flung aside to his right (their left): tumbling, onto their back, a bounce and a slide
     if "fall" not in ctx:
         ctx["fall"] = KA.fall_tracks(ctx["drop_torso"].translation.copy(), ctx["drop_rot"], DROP, "thrown",
-                                     land=(2.8, 0.9), yaw=70, side=1.0)
+                                     land=(-2.8, 0.9), yaw=-70, side=-1.0)
     return KA.apply_fall(va, f, ctx["fall"], ctx["drop_limbs"], look_at=socket)
 
 
-# his claw: Tm-relative points (vectors) or worked-out ones (names), armature space
+# his claw (left hand): Tm-relative points (vectors) or worked-out ones (names), armature space
 CLAW = KA.Live(
-    (0, (-0.48, -0.14, 1.0)), (COIL, (-0.46, -0.24, 1.04)), (GRAB, (-0.5, 0.06, 1.02), "o"), (LIFTED, (-0.5, 0.0, 1.05)),
-    (32, (-0.64, 0.18, 1.5), "i"), (37, (-0.5, 0.40, 2.02), "io"), (WIND, (-0.46, 0.47, 2.13), "i"),
+    (0, (0.48, -0.14, 1.0)), (COIL, (0.46, -0.24, 1.04)), (GRAB, (0.5, 0.06, 1.02), "o"), (LIFTED, (0.5, 0.0, 1.05)),
+    (31, (0.72, 0.06, 1.5), "i"), (36, (0.8, 0.08, 2.2), "io"), (WIND, tuple(COCKED), "i"),
     (WIND + 1.6, "strike", "i"), (STAB, "through", "o"), (STAB + 1, "deeper", "o"), (STAB + 3, "through", "io"),
-    (RIP - 4, "through"), (RIP - 2, "deeper", "io"), (RIP, "out", "o3"), (72, (-0.78, 0.06, 1.45), "o"),
-    (80, (-0.6, -0.1, 1.2), "io"), (86, (-0.58, -0.2, 1.4), "io"), (89, (-0.62, -0.12, 0.96), "o3"),
-    (94, (-0.55, -0.15, 1.08), "io"), (LENGTH, (-0.52, -0.18, 1.04)), arc=True)
+    (RIP - 4, "through"), (RIP - 2, "deeper", "io"), (RIP, "out", "o3"), (72, (0.78, 0.06, 1.45), "o"),
+    (80, (0.6, -0.1, 1.2), "io"), (86, (0.58, -0.2, 1.4), "io"), (89, (0.62, -0.12, 0.96), "o3"),
+    (94, (0.55, -0.15, 1.08), "io"), (LENGTH, (0.52, -0.18, 1.04)), arc=True)
 
 
 def kill(an, ctx, f):
@@ -194,57 +198,62 @@ def kill(an, ctx, f):
     ctx.setdefault("va", KA.VictimAnimator())
     monster_body(an, f, ctx)
     Tm = an.rest_delta("UpperTorso")
-    # the left hand: drawn back, lunges for the neck, hoists them, flings them away
+    # the right hand (free): drawn back, lunges for the neck, hoists them, flings them away
     if "hand_track" not in ctx:
         neck = pl.point_to_blender(KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH) @ NECK)
-        r0 = an.pb["LeftLowerArm"].bone.tail_local.copy()
+        r0 = an.pb["RightLowerArm"].bone.tail_local.copy()
         L = HOLD
-        ctx["hand_track"] = T((0, r0), (COIL, Vector((0.6, 0.25, 1.24))), (COIL + 3, Vector((0.62, 0.28, 1.27))),
-                              (14, (Vector((0.62, 0.28, 1.27)) + neck) / 2 + Vector((0.06, 0, 0.12)), "i"),
-                              (GRAB, neck + Vector((0.02, 0.05, 0)), "o"), (20, neck.lerp(L, 0.6) + Vector((0, -0.04, 0.1)), "o3"),
-                              (LIFTED, L, "io"), (31, L + Vector((0, 0.02, 0.02))), (WIND, L + Vector((0.02, 0.04, 0.03))),
+        back = Vector((-0.6, 0.25, 1.24))
+        ctx["hand_track"] = T((0, r0), (COIL, back), (COIL + 3, back + Vector((-0.02, 0.03, 0.03))),
+                              (14, (back + neck) / 2 + Vector((-0.06, 0, 0.12)), "i"),
+                              (GRAB, neck + Vector((-0.02, 0.05, 0)), "o"), (20, neck.lerp(L, 0.6) + Vector((0, -0.04, 0.1)), "o3"),
+                              (LIFTED, L, "io"), (31, L + Vector((0, 0.02, 0.02))), (WIND, L + Vector((-0.02, 0.04, 0.03))),
                               (STAB, L + Vector((0, -0.16, 0.0)), "o3"), (48, L + Vector((0, -0.12, 0))),
-                              (57, L + Vector((0, -0.1, 0.14)), "io"), (RIP - 2, L + Vector((0, -0.11, 0.12))), (RIP, L + Vector((0, -0.02, 0.1)), "o3"),
-                              (DROP - 2, L + Vector((-0.12, 0.02, 0.06)), "io"), (DROP, L + Vector((0.4, -0.05, -0.1)), "o3"),
-                              (80, L + Vector((0.55, 0.05, -0.35)), "o"), (92, r0 + Vector((0.12, -0.1, 0.05)), "io"),
-                              (LENGTH, r0 + Vector((0.02, -0.04, 0.02))), arc=True)
+                              (57, L + Vector((0, -0.1, 0.14)), "io"), (RIP - 2, L + Vector((0, -0.11, 0.12))),
+                              (RIP, L + Vector((0, -0.02, 0.1)), "o3"), (DROP - 2, L + Vector((0.12, 0.02, 0.06)), "io"),
+                              (DROP, L + Vector((-0.4, -0.05, -0.1)), "o3"), (80, L + Vector((-0.55, 0.05, -0.35)), "o"),
+                              (92, r0 + Vector((-0.12, -0.1, 0.05)), "io"), (LENGTH, r0 + Vector((-0.02, -0.04, 0.02))), arc=True)
     hold = GRAB - 2 <= f <= DROP
-    K.reach(an, "Left", ctx["hand_track"](f), Tm.to_3x3() @ Vector((0.8, 0.3, -0.6)),
-            Vector((-0.5, -0.75, 0.2)).normalized() if hold else None, Vector((0, -1, 0)))
+    K.reach(an, "Right", ctx["hand_track"](f), Tm.to_3x3() @ Vector((-0.8, 0.3, -0.6)),
+            Vector((0.5, -0.75, 0.2)).normalized() if hold else None, Vector((0, -1, 0)))
     if f == GRAB:
         neck = pl.point_to_blender(KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH) @ NECK)
-        ctx["grip_local"] = an.pb["LeftHand"].matrix.inverted() @ neck
+        ctx["grip_local"] = an.pb["RightHand"].matrix.inverted() @ neck
     v = victim(an, ctx, f)
-    # the claw: cocked far back, driven through their chest, held, twisted, ripped out, flicked
+    # the claw: raised high, driven down through their chest, held, twisted, ripped out, flicked
     if f < DROP:
         tb = pl.to_blender(v.torso)
         sdir = (tb.to_3x3() @ Vector((0, 0, 1))).normalized()  # through them, front to back
         through = tb @ CHEST_IN
-        cocked = an.rest_delta("UpperTorso") @ Vector((-0.46, 0.47, 2.13))
+        cocked = Tm @ COCKED
         ctx["named"] = {"through": through, "deeper": through + sdir * 0.06, "out": tb @ Vector((0, 0.2, -2.6)),
-                        "strike": (cocked + through) / 2 + Vector((0, 0, 0.18))}
+                        "strike": (cocked + through) / 2 + Vector((0, 0, 0.1))}
         ctx["sdir"] = sdir
     named = ctx["named"]
     target = CLAW(f, lambda x: named[x] if isinstance(x, str) else Tm @ Vector(x))
-    cock = K.window(f, 28, 34, WIND, STAB)
-    pole = Tm.to_3x3() @ Vector((-0.8, 0.4, -0.4)).lerp(Vector((-0.6, 0.7, 0.4)), cock)
+    cock = K.window(f, 28, 35, WIND, STAB)  # the elbow out to the side and up while it's raised
+    pole = Tm.to_3x3() @ Vector((0.8, 0.4, -0.4)).lerp(Vector((1.0, 0.15, -0.2)), cock)
     hand_dir, palm = None, Vector((0, 0, -1))
-    if 30 <= f < STAB:  # aimed at them
+    if 30 <= f < STAB:
+        # raised: the hand carries on up from the forearm, palm toward them, so the hooked claws
+        # curl forward over them; through the strike it turns to point along the stab
         aim = (pl.point_to_blender(v.torso @ CHEST_IN) - target).normalized()
-        hand_dir = aim.lerp(Vector((0, 0, -1)), 1 - K.smoothstep(30, 36, f)).normalized()
+        up = (Tm.to_3x3() @ Vector((0.1, -0.35, 0.93))).normalized()
+        raise_w = K.smoothstep(30, 36, f) * (1 - K.smoothstep(WIND, STAB - 0.5, f))
+        hand_dir = Vector((0, 0, -1)).lerp(up, raise_w).lerp(aim, K.smoothstep(WIND, STAB - 0.5, f)).normalized()
+        palm = Vector((0, 0, -1)).lerp(aim, raise_w).normalized()
     elif STAB <= f < RIP + 2:
         hand_dir = ctx["sdir"]
         twist = K.smoothstep(TWIST - 2, TWIST + 1, f)  # he turns the claw in them
-        palm = Vector((0, 0, -1)).lerp(Vector((-1, 0, 0)), twist).normalized()
-    K.reach(an, "Right", target, pole, hand_dir, palm)
-    pose = K.finger_curl(an, "Right", FINGERS_R(f), spread=-8 * K.window(f, 30, 36, STAB - 1, STAB + 2))
-    pose.update(K.finger_curl(an, "Left", FINGERS_L(f), spread=10 * K.window(f, 4, COIL, GRAB - 1, GRAB)))
+        palm = Vector((0, 0, -1)).lerp(Vector((1, 0, 0)), twist).normalized()
+    K.reach(an, "Left", target, pole, hand_dir, palm)
+    pose = K.finger_curl(an, "Left", FINGERS_CLAW(f), spread=-8 * K.window(f, 30, 36, STAB - 1, STAB + 2))
+    pose.update(K.finger_curl(an, "Right", FINGERS_GRAB(f), spread=10 * K.window(f, 4, COIL, GRAB - 1, GRAB)))
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
-    import bpy as _b
-    _b.context.view_layer.update()
-    ctx["claw_v"] = pl.point_to_victim(an.pb["RightLowerArm"].head.lerp(an.pb["RightLowerArm"].tail, 0.7))
-    ctx["claw_tip_v"] = pl.point_to_victim(an.pb["RightHand"].tail)
+    bpy.context.view_layer.update()
+    ctx["claw_v"] = pl.point_to_victim(an.pb["LeftLowerArm"].head.lerp(an.pb["LeftLowerArm"].tail, 0.7))
+    ctx["claw_tip_v"] = pl.point_to_victim(an.pb["LeftHand"].tail)
     ctx["vhead"] = pl.to_blender(v.head_world()).translation
     if os.environ.get("KILL_DEBUG"):
         D = an.pb["Head"].matrix @ an.pb["Head"].bone.matrix_local.inverted()

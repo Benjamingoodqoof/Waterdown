@@ -181,8 +181,8 @@ HEAD_H = T((GRAB, (-6, 0, 0)), (108, (-20, 0, 6), "o3"), (116, (16, 0, 0)), (DEA
 
 
 def fall_tracks(p0, r0):
-    """The fall, posed: lands on its feet, the knees buckle, tips back onto the floor with one
-    knee up and the arms flung out, bounces, and settles with the knee falling aside."""
+    """The fall, posed: lands on its feet, the knees buckle, tips back onto the floor with the arms
+    flung out, bounces (the legs lift a little and slap down) and settles with the legs flat."""
     x, z = p0.x, p0.z
     torso_pos = T((DROP, p0), (177, (x, 0.0, z), "i"), (181, (x + 0.1, -1.0, z + 0.25), "io"),
                   (LAND, (x + 0.2, -2.5, z + 1.45), "i"), (189, (x + 0.2, -2.32, z + 1.48), "o"),
@@ -193,16 +193,15 @@ def fall_tracks(p0, r0):
         "Right Arm": T((DROP, (0.1, -1, 0.05)), (177, (0.2, -1, -0.1)), (181, (0.75, 0.35, 0.2), "o"), (LAND, (1.0, -0.15, 0.1), "i"),
                        (189, (0.95, 0.1, 0.05), "o"), (194, (0.95, -0.25, 0.15), "io")),
         "Left Arm": T((DROP, (-0.1, -1, 0.05)), (177, (-0.15, -1, -0.15)), (181, (-0.6, 0.55, 0.1), "o"), (LAND, (-0.9, 0.2, 0.1), "i"),
-                      (189, (-0.85, 0.35, 0.05), "o"), (194, (-0.5, -0.1, -0.85), "io")),  # comes to rest across the chest
+                      (189, (-0.85, 0.35, 0.05), "o"), (194, (-0.35, -0.95, -0.05), "io")),  # comes to rest along the side
         "Right Leg": T((DROP, (0.05, -1, 0.0)), (177, (0.1, -1, -0.05)), (181, (0.25, -0.6, -0.75), "io"), (LAND, (0.12, -1, -0.05), "i"),
                        (189, (0.12, -0.95, -0.25), "o"), (194, (0.15, -1, 0.0), "io")),
-        "Left Leg": T((DROP, (-0.05, -1, 0.0)), (177, (-0.1, -1, -0.05)), (181, (-0.25, -0.65, -0.7), "io"), (LAND, (-0.1, -0.55, -0.85), "i"),
-                      (189, (-0.12, -0.6, -0.8), "o"), (194, (-0.65, -0.7, -0.3), "io")),  # the knee up, then falling aside
+        "Left Leg": T((DROP, (-0.05, -1, 0.0)), (177, (-0.1, -1, -0.05)), (181, (-0.25, -0.65, -0.7), "io"), (LAND, (-0.12, -0.95, -0.3), "i"),
+                      (189, (-0.12, -1, -0.1), "o"), (194, (-0.35, -0.95, -0.02), "io")),  # flat, splayed out
     }
     moves = {  # the legs moved up toward the hips when they're bent (fake knees)
         "Right Leg": T((DROP, (0, 0, 0)), (177, (0, 0, 0)), (181, (0, 0.45, -0.1), "io"), (LAND, (0, 0, 0), "i")),
-        "Left Leg": T((DROP, (0, 0, 0)), (177, (0, 0, 0)), (181, (0, 0.45, -0.1), "io"), (LAND, (0, 0.4, 0.05), "i"),
-                      (194, (0, 0.2, 0.0), "io")),
+        "Left Leg": T((DROP, (0, 0, 0)), (177, (0, 0, 0)), (181, (0, 0.45, -0.1), "io"), (LAND, (0, 0, 0), "i")),
     }
     head = T((DROP, (-16, 0, 38)), (177, (-35, 0, 20), "i"), (181, (-10, 0, 10), "o"), (LAND, (20, 0, 0), "i"),
              (189, (-5, 0, 10), "o"), (194, (5, 0, 40), "io"))

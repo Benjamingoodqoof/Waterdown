@@ -102,14 +102,15 @@ to look at the body.
 | `End` | 110 | |
 
 **The Receiver: "Neck grab and stab"** (120 frames). His phone head snaps round to the player.
-He coils (chest back, hips turned, his left hand drawn back with the fingers splayed), then
-lunges with one long step and seizes them by the neck, straightens up and hoists them off their
-feet while they kick and pull at his wrist. He winds the claw right back: his whole body twists
-away, the arm cocked high behind his shoulder with the claw aimed at them; they see it and
-reach out at it. He holds it, then drives it through their chest. Their body jolts back and the
-knees jerk up; they grab at the arm in them and look down at it. He lifts them higher on it,
-twists it, and they go slack. He pushes it in once more, rips it out with a wide sweep, swings
-them across and flings them aside, then flicks the claw clean and watches them.
+He coils (chest back, hips turned, his free right hand drawn back with the fingers splayed), then
+lunges with one long step and seizes them by the neck with it, straightens up and hoists them
+off their feet while they kick and pull at his wrist. He raises his left arm, the one holding
+the handset, high: the elbow out to the side, the claw up above his head and hooked toward them,
+his chest leaning back and turned away. They see it and reach out at it. He holds it, then
+drives it down through their chest. Their body jolts back and the knees jerk up; they grab at
+the arm in them and look down at it. He lifts them higher on it, twists it, and they go slack.
+He pushes it in once more, rips it out with a wide sweep, swings them across and flings them
+aside, then flicks the claw clean and watches them.
 
 | Marker | Frame | Use it for |
 |---|---|---|
@@ -125,7 +126,7 @@ to the player like a normal player would, stops in front of them, reaches out an
 the throat, and lifts them off the floor one-handed in two jolts. It holds them up while they
 kick and claw at its arm, squeezing every few beats, its head tipping over a little more each
 time. They go limp; it opens its hand and they drop, land on their feet, buckle and fall onto
-their back with a knee up, bounce and settle. Its arm comes down in two drops and its head snaps
+their back, bounce and settle flat. Its arm comes down in two drops and its head snaps
 upright.
 
 The disguise is stop motion, like its other disguise animations: distinct poses held for 4 to

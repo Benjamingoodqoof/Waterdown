@@ -323,9 +323,10 @@ def fall_tracks(p0, r0, s, kind="drop", land=(0.2, 1.45), yaw=0.0, side=1.0):
 
     kind "drop": let go: the feet hit, the knees buckle, the body tips back and slams down.
     kind "thrown": flung: tumbling through the air, the back hits, a bounce and a slide.
-    Both end the same way, posed rather than lerped: arms flung out at the impact, a bounce,
-    then a settle with one arm thrown up past the head, the other along the side, one knee
-    bent and fallen outward, the head rolled to one side. `land` is (dx, dz) to where the body
+    Both end the same way, posed rather than lerped: arms flung out at the impact, a bounce
+    (the legs lift off the floor a little and slap back down), then a settle with one arm
+    thrown up past the head, the other along the side, the legs flat and splayed, the head
+    rolled to one side. `land` is (dx, dz) to where the body
     lies, `yaw` the way the lying body turns (0: head away from where it fell from), `side`
     mirrors the pose. Returns tracks for apply_fall."""
     x, z = p0.x, p0.z
@@ -339,9 +340,9 @@ def fall_tracks(p0, r0, s, kind="drop", land=(0.2, 1.45), yaw=0.0, side=1.0):
         limbs = {"Right Arm": [(F, (0.25, -0.9, -0.3)), (B, (0.6, -0.2, -0.75), "o"), (L, (1.0, 0.25, -0.1), "o")],
                  "Left Arm": [(F, (-0.25, -0.9, -0.35)), (B, (-0.55, -0.1, -0.8), "o"), (L, (-1.0, 0.15, -0.1), "o")],
                  "Right Leg": [(F, (0.1, -1, 0.0)), (B, (0.25, -0.5, -0.85), "io"), (L, (0.15, -1, -0.1), "i")],
-                 "Left Leg": [(F, (-0.1, -1, 0.0)), (B, (-0.25, -0.55, -0.8), "io"), (L, (-0.1, -0.55, -0.85), "i")]}
+                 "Left Leg": [(F, (-0.1, -1, 0.0)), (B, (-0.25, -0.55, -0.8), "io"), (L, (-0.12, -0.95, -0.3), "i")]}
         moves = {"Right Leg": [(F, (0, 0, 0)), (B, (0, 0.5, -0.15), "io"), (L, (0, 0, 0), "i")],
-                 "Left Leg": [(F, (0, 0, 0)), (B, (0, 0.5, -0.15), "io"), (L, (0, 0.45, 0.0), "i")]}
+                 "Left Leg": [(F, (0, 0, 0)), (B, (0, 0.5, -0.15), "io"), (L, (0, 0, 0), "i")]}
         head = [(s, (-10, 0, 0)), (F, (-30, 0, 10 * sd), "i"), (B, (10, 0, 6 * sd), "o"), (L, (30, 0, 0), "i")]
     else:
         A_, L = s + 4, s + 9
@@ -351,28 +352,28 @@ def fall_tracks(p0, r0, s, kind="drop", land=(0.2, 1.45), yaw=0.0, side=1.0):
         limbs = {"Right Arm": [(A_, (0.75, 0.6, 0.25), "o"), (L, (1.0, 0.3, -0.1), "o")],
                  "Left Arm": [(A_, (-0.7, 0.65, -0.3), "o"), (L, (-1.0, 0.1, -0.15), "o")],
                  "Right Leg": [(A_, (0.3, -0.7, -0.6), "o"), (L, (0.2, -1, -0.15), "i")],
-                 "Left Leg": [(A_, (-0.2, -0.8, 0.5), "o"), (L, (-0.1, -0.6, -0.8), "i")]}
+                 "Left Leg": [(A_, (-0.2, -0.8, 0.5), "o"), (L, (-0.12, -0.95, -0.3), "i")]}
         moves = {"Right Leg": [(A_, (0, 0.35, -0.1), "o"), (L, (0, 0, 0), "i")],
-                 "Left Leg": [(A_, (0, 0.1, 0.0), "o"), (L, (0, 0.4, 0.0), "i")]}
+                 "Left Leg": [(A_, (0, 0.1, 0.0), "o"), (L, (0, 0, 0), "i")]}
         head = [(s, (-25, 0, 10 * sd)), (A_, (-35, 15 * sd, 20 * sd), "io"), (L, (35, 0, 0), "i")]
     slide = Vector((0.12 * dx, 0, 0.12 * dz)) if kind == "thrown" else Vector((0, 0, 0))
     pos += [(L + 3, lying + slide * 0.6 + Vector((0, 0.3 if kind == "thrown" else 0.2, 0)), "o"),
             (L + 7, lying + slide, "i"), (L + 9, lying + slide + Vector((0, 0.05, 0)), "o"), (L + 14, lying + slide, "io")]
     rot += [(L + 3, (82, yaw, -10 * sd), "o"), (L + 7, (90, yaw, -12 * sd), "i"), (L + 14, (90, yaw + 4 * sd, -16 * sd), "io")]
     head += [(L + 3, (-10, 0, 6 * sd), "o"), (L + 7, (10, 15 * sd, 0), "i"), (L + 14, (0, 55 * sd, 10 * sd), "io")]
-    # settle: one arm up past the head, the other along the side; one knee bent and fallen out
+    # settle: one arm up past the head, the other along the side; the legs flat, one splayed out
     up, down = ("Right Arm", "Left Arm") if sd > 0 else ("Left Arm", "Right Arm")
     bent, straight = ("Left Leg", "Right Leg") if sd > 0 else ("Right Leg", "Left Leg")
     ux, dx_ = (1 if up == "Right Arm" else -1), (1 if down == "Right Arm" else -1)
     bx, sx = (1 if bent == "Right Leg" else -1), (1 if straight == "Right Leg" else -1)
     limbs[up] += [(L + 3, (ux * 0.9, 0.45, -0.3), "o"), (L + 7, (ux * 0.95, 0.3, -0.05), "i"), (L + 14, (ux * 0.6, 0.8, -0.05), "io")]
     limbs[down] += [(L + 3, (dx_ * 0.85, 0.3, -0.4), "o"), (L + 7, (dx_ * 0.9, 0.05, -0.05), "i"), (L + 14, (dx_ * 0.3, -0.95, -0.05), "io")]
-    limbs[bent] += [(L + 3, (bx * 0.1, -0.5, -0.85), "o"), (L + 7, (bx * 0.15, -0.6, -0.8), "i"), (L + 14, (bx * 0.75, -0.55, -0.4), "io")]
-    limbs[straight] += [(L + 3, (sx * 0.15, -0.9, -0.4), "o"), (L + 7, (sx * 0.15, -1, -0.05), "i"), (L + 14, (sx * 0.25, -1, -0.02), "io")]
+    limbs[bent] += [(L + 3, (bx * 0.15, -0.9, -0.35), "o"), (L + 7, (bx * 0.2, -1, -0.08), "i"), (L + 14, (bx * 0.35, -0.95, -0.02), "io")]
+    limbs[straight] += [(L + 3, (sx * 0.15, -0.92, -0.3), "o"), (L + 7, (sx * 0.15, -1, -0.05), "i"), (L + 14, (sx * 0.25, -1, -0.02), "io")]
     moves.setdefault(bent, [(s, (0, 0, 0))])
-    moves[bent] += [(L + 7, (0, 0.45, 0), "i"), (L + 14, (0, 0.4, -0.1), "io")]
+    moves[bent] += [(L + 7, (0, 0, 0), "i")]
     moves.setdefault(straight, [(s, (0, 0, 0))])
-    moves[straight] += [(L + 3, (0, 0.15, 0), "o"), (L + 7, (0, 0, 0), "i")]
+    moves[straight] += [(L + 7, (0, 0, 0), "i")]
     return {
         "start": s, "end": L + 14, "land": L,
         "pos": Track(*pos), "rot": Track(*rot), "head": Track(*head),
