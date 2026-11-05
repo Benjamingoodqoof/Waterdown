@@ -18,13 +18,18 @@ DISTANCE studs in front of his, facing him. 120 frames at 30 fps.
 Markers: Grab 16 (QTE starts), Stab 43 (blood on the player's screen; QTE ends), RipOut 68,
 Drop 74, End 120.
 
-Usage: python3 receiver_kill.py BLEND EXPORT_DIR PREVIEW_BLEND
+Usage: python3 receiver_kill.py BLEND EXPORT_DIR PREVIEW_BLEND [--regenerate-monster]
+
+His Kill action in the blend has been edited by hand, so by default it's kept exactly as it is
+and only the player's half is worked out against it (their neck in his right hand, their chest
+on his claw while it's in them). --regenerate-monster replaces it with the generated version.
 """
+import math
 import os
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Quaternion, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -106,51 +111,57 @@ def monster_body(an, f, ctx):
 
 
 # ---------------------------------------------------------------- the player's key poses
-FLINCH = KA.flinch_tracks(2, 12, "Left Leg")
-# held by the neck (+pitch tips the top back, +yaw turns to their left); the claw is on their right
-H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (19, (-14, 4, -6), "o3"), (23, (8, -2, 4), "o"), (LIFTED, (0, 0, -3)),
-          (31, (-5, -4, 3)), (35, (3, -8, -3)), (WIND, (-2, -14, 0)), (STAB, (-24, -4, 2), "o5"), (47, (8, -2, -2), "io"),
-          (51, (2, 0, 0)), (TWIST, (-12, 8, -6), "o3"), (58, (4, 2, 2), "io"), (64, (6, 0, 4)),
-          (RIP - 2, (-6, 0, 2), "o"), (RIP, (16, 0, -2), "o3"), (71, (4, 0, 0), "io"), (DROP, (-6, 0, -4)))
-HEAD_H = T((GRAB, FLINCH["head"](GRAB)), (19, (16, 0, 6), "o3"), (24, (8, 12, -4)), (28, (10, -12, 4)),
-           (32, (6, 0, 0)), (WIND, (10, 0, 0)), (STAB, (8, -14, 6), "o5"), (47, (0, -12, 4)), (52, (-30, -8, -10)),
-           (TWIST, (10, 0, 6), "o3"), (58, (-20, 8, -10)), (64, (-40, -6, -20)), (RIP, (-10, 0, 0), "o"),
-           (DROP, (-30, 0, -10)))
-LOOK = ((GRAB, "phone"), (31, "phone"), (35, "claw", "io"), (WIND, "claw"), (STAB, "wound", "o3"), (50, "wound"),
-        (60, "ahead", "io"))
-# hands: on his wrist, reaching at the raised claw, flung out by the stab, grabbing the arm in
-# them, slipping off ("wrist", "reach", "claw" are worked out each frame)
+FLINCH = KA.flinch_tracks(2, 14, "Left Leg")
+# The whole body is keyed on the same frames (the key poses), so on the R6 rig Blender eases between
+# whole poses. Each hit holds the pose on its frame, so the reaction starts on the hit, not before.
+#   16 grabbed  22 hoisted, hands on his wrist  28 / 34 kicking  34-40 the claw goes up: they reach
+#   at it  43 the stab  48 jolted back, knees up, arms flung  55 grabbing the arm in them  61 weaker
+#   66 slack  68 the rip  71 dragged forward  74 flung (then the fall)
+H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (22, (-10, 4, -4), "io"), (28, (4, -2, 2), "io"), (34, (-3, -6, 2), "io"),
+          (40, (-2, -12, 0), "io"), (STAB, (-2, -12, 0)), (48, (-20, -4, 2), "o"), (55, (4, -2, -2), "io"),
+          (61, (-4, 4, -2), "io"), (66, (4, 0, 2), "io"), (RIP, (2, 0, 2), "io"), (71, (14, 0, -2), "o"),
+          (DROP, (-4, 0, -2), "io"))
+HEAD_H = T((GRAB, FLINCH["head"](GRAB)), (22, (14, 0, 6), "io"), (28, (8, 10, -4), "io"), (34, (6, 0, 0), "io"),
+           (40, (10, 0, 0), "io"), (STAB, (10, 0, 0)), (48, (8, -14, 6), "o"), (55, (0, -12, 4), "io"),
+           (61, (-24, 4, -10), "io"), (66, (-40, -6, -20), "io"), (RIP, (-40, -6, -20)), (71, (-10, 0, 0), "o"),
+           (DROP, (-30, 0, -10), "io"))
+LOOK = ((GRAB, "phone"), (28, "phone"), (34, "claw", "io"), (STAB, "claw"), (48, "wound", "io"), (55, "wound"),
+        (61, "ahead", "io"))
 ARMS = {
-    "Left Arm": KA.PoseKeys(
-        (GRAB, ((0.15, 0.5, -0.85), (0.2, 0.3, -0.3))), (GRAB + 3, ("wrist", (0.25, 0.25, -0.45)), "o"),
-        (23, ("wrist", (0.2, 0.05, -0.4))), (26, ("wrist", (0.25, 0.3, -0.45))), (30, ("wrist", (0.2, 0.05, -0.4))),
-        (34, ("reach", (0.1, 0.35, -0.3)), "o"), (WIND, ("reach", (0.05, 0.45, -0.25))),
-        (STAB, ((-0.85, 0.3, -0.4), (0, 0.2, 0)), "o3"), (47, ("claw", (0.2, 0.15, -0.45)), "o"),
-        (TWIST, ("claw", (0.15, 0.1, -0.4))), (56, ((-0.5, -0.6, -0.5), (0, 0.1, 0)), "o"),
-        (60, ("claw", (0.1, 0.0, -0.3))), (65, ((-0.12, -1, -0.15), (0, 0, 0)), "i"),
-        (RIP, ((-0.1, -0.8, -0.6), (0, 0, 0)), "o"), (DROP, ((-0.2, -0.9, -0.3), (0, 0, 0)))),
+    # their right hand (the claw's side): on his wrist, reaching up at the raised claw, flung out by
+    # the stab, grabbing the arm in them, slipping off
     "Right Arm": KA.PoseKeys(
-        (GRAB, ((-0.2, 0.6, -0.8), (-0.2, 0.35, -0.3))), (GRAB + 2, ("wrist", (-0.25, 0.25, -0.45)), "o"),
-        (22, ("wrist", (-0.2, 0.35, -0.45))), (27, ("wrist", (-0.25, 0.1, -0.4))), (31, ("wrist", (-0.2, 0.3, -0.45))),
-        (WIND, ("wrist", (-0.2, 0.15, -0.4))), (STAB, ((0.85, 0.35, -0.35), (0, 0.2, 0)), "o3"),
-        (46, ((0.7, 0.0, -0.5), (0, 0.1, 0))), (50, ("wrist", (-0.2, 0.1, -0.4))),
-        (TWIST, ((0.6, 0.1, -0.6), (0, 0.1, 0)), "o"), (58, ("wrist", (-0.15, 0.0, -0.3))),
-        (63, ((0.1, -1, -0.1), (0, 0, 0)), "i"), (RIP, ((0.1, -0.8, -0.55), (0, 0, 0)), "o"),
-        (DROP, ((0.2, -0.9, -0.3), (0, 0, 0)))),
+        (GRAB, ((-0.2, 0.6, -0.8), (-0.2, 0.35, -0.3))), (22, ("wrist", (-0.25, 0.25, -0.45)), "io"),
+        (28, ("wrist", (-0.2, 0.05, -0.4)), "io"), (34, ("reach", (-0.05, 0.4, -0.3)), "io"),
+        (40, ("reach", (-0.05, 0.45, -0.25)), "io"), (STAB, ("reach", (-0.05, 0.45, -0.25))),
+        (48, ((0.85, 0.3, -0.4), (0, 0.2, 0)), "o"), (55, ("claw", (-0.2, 0.15, -0.45)), "io"),
+        (61, ("claw", (-0.15, 0.05, -0.35)), "io"), (66, ((0.12, -1, -0.15), (0, 0, 0)), "io"),
+        (RIP, ((0.12, -1, -0.15), (0, 0, 0))), (71, ((0.1, -0.8, -0.6), (0, 0, 0)), "o"),
+        (DROP, ((0.2, -0.9, -0.3), (0, 0, 0)), "io")),
+    # their left: pulling at his wrist on their throat, flung out, then weakly back
+    "Left Arm": KA.PoseKeys(
+        (GRAB, ((0.15, 0.5, -0.85), (0.2, 0.3, -0.3))), (22, ("wrist", (0.25, 0.25, -0.45)), "io"),
+        (28, ("wrist", (0.25, 0.3, -0.45)), "io"), (34, ("wrist", (0.2, 0.05, -0.4)), "io"),
+        (40, ("wrist", (0.2, 0.1, -0.4)), "io"), (STAB, ("wrist", (0.2, 0.1, -0.4))),
+        (48, ((-0.8, 0.25, -0.45), (0, 0.2, 0)), "o"), (55, ("wrist", (0.2, 0.1, -0.4)), "io"),
+        (61, ((-0.15, -1, -0.1), (0, 0, 0)), "io"), (66, ((-0.15, -1, -0.1), (0, 0, 0))),
+        (RIP, ((-0.15, -1, -0.1), (0, 0, 0))), (71, ((-0.1, -0.8, -0.6), (0, 0, 0)), "o"),
+        (DROP, ((-0.2, -0.9, -0.3), (0, 0, 0)), "io")),
 }
 HANGL = {"Right Leg": ((0.06, -1, 0.1), (0, 0, 0)), "Left Leg": ((-0.06, -1, 0.1), (0, 0, 0))}
 LEGS = {
     leg: KA.PoseKeys(
         (GRAB, (((-0.05, -0.95, 0.35) if leg == "Left Leg" else (0.05, -0.95, -0.3)), (0, 0, 0))),
-        (GRAB + 3, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "o"),
-        *KA.kick_keys(leg, 19, 39, beat=4, a0=1.0, a1=0.85, phase=0 if leg == "Left Leg" else 1),
-        (STAB, ((sx * 0.12, -0.5, -0.85), (0, 0.5, -0.15)), "o3"), (46, ((sx * 0.1, -0.6, -0.8), (0, 0.45, -0.12))),
-        (51, HANGL[leg], "io"),
-        (TWIST, (((-0.12, -0.65, -0.7), (0, 0.35, -0.1)) if leg == "Left Leg" else ((0.05, -1, -0.2), (0, 0, 0))), "o3"),
-        (58, HANGL[leg], "io"), (64, ((sx * 0.05, -1, 0.05), (0, 0, 0))), (RIP, ((sx * 0.05, -0.95, 0.3), (0, 0, 0)), "o"),
-        (DROP, ((sx * 0.05, -1, 0.0), (0, 0, 0))))
+        (22, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "io"),
+        *KA.kick_keys(leg, 28, 34, beat=6, a0=1.0, a1=0.9, phase=0 if leg == "Left Leg" else 1),
+        (40, HANGL[leg], "io"), (STAB, HANGL[leg]), (48, ((sx * 0.12, -0.5, -0.85), (0, 0.5, -0.15)), "o"),
+        (55, ((sx * 0.08, -0.85, -0.4), (0, 0.2, -0.05)), "io"), (61, HANGL[leg], "io"), (66, HANGL[leg]),
+        (RIP, HANGL[leg]), (71, ((sx * 0.05, -0.95, 0.3), (0, 0, 0)), "o"), (DROP, ((sx * 0.05, -1, 0.0), (0, 0, 0)), "io"))
     for leg, sx in (("Right Leg", 1), ("Left Leg", -1))
 }
+# the key poses on the R6 rig (Blender eases between them) and the hits (hard stops)
+R6_KEYS = (2, 4, 8, 14, GRAB, 22, 28, 34, 40, STAB, 48, 55, 61, 66, RIP, 71, DROP)
+R6_SHARP = (STAB, RIP)
 
 
 def victim(an, ctx, f):
@@ -160,18 +171,30 @@ def victim(an, ctx, f):
         return KA.apply_flinch(va, f, FLINCH, look_at=socket)
     if f < DROP:
         grip = pl.point_to_victim(an.pb["RightHand"].matrix @ ctx["grip_local"])
-        torso = va.torso_from_grip(grip, NECK, H_ROT(f))
+        R = KA.euler(H_ROT(f))
+        pin = K.window(f, STAB - 1, STAB, RIP - 5, RIP - 1)
+        if pin > 0:  # impaled: their chest turned onto his claw (his wrist), wherever his arm goes
+            want = pl.point_to_victim(an.pb["LeftHand"].head) - grip
+            have = R.to_3x3() @ (CHEST_IN - NECK)
+            q = have.rotation_difference(want)
+            if q.angle > math.radians(50):  # never wrenched round further than a body would go
+                q = Quaternion().slerp(q, math.radians(50) / q.angle)
+            R = Quaternion().slerp(q, pin).to_matrix().to_4x4() @ R
+        torso = Matrix.Translation(grip - R.to_3x3() @ NECK) @ R
         wrist = pl.point_to_victim(an.pb["RightLowerArm"].tail)  # his hand on their neck
         elbow = pl.point_to_victim(an.pb["RightLowerArm"].head)
         claw = ctx.get("claw_v", wrist)  # his claw arm, last frame (it's posed after them)
-        points = {"phone": socket, "claw": ctx.get("claw_tip_v", socket),
+        if f <= WIND:  # where they see the raised claw (kept once it comes down, so their eyes and
+            ctx["raised"] = ctx.get("claw_tip_v", socket)  # hand don't follow it into their chest)
+        raised = ctx["raised"]
+        points = {"phone": socket, "claw": raised,
                   "wound": torso @ Vector((1.1, 0.2, -1.8)), "ahead": torso @ Vector((0, 1.0, -6))}
         v = va.build(f, torso, head=HEAD_H(f), look_at=KA.look_blend(f, LOOK, points), lag={"head": 2})
         down = Vector((0, -0.25, 0))
         targets = {"Left Arm": {"wrist": wrist.lerp(elbow, 0.12) + down, "claw": claw + down,
-                                "reach": ctx.get("claw_tip_v", socket)},
+                                "reach": raised},
                    "Right Arm": {"wrist": wrist.lerp(elbow, 0.45) + down, "claw": claw + down,
-                                 "reach": ctx.get("claw_tip_v", socket)}}
+                                 "reach": raised}}
         KA.pose_limbs(va, v, f, ARMS, LEGS, targets)
         ctx["drop_torso"], ctx["drop_rot"] = torso, H_ROT(f)
         ctx["drop_limbs"] = KA.limb_dirs(v)
@@ -179,8 +202,9 @@ def victim(an, ctx, f):
     # flung aside to his right (their left): tumbling, onto their back, a bounce and a slide
     if "fall" not in ctx:
         ctx["fall"] = KA.fall_tracks(ctx["drop_torso"].translation.copy(), ctx["drop_rot"], DROP, "thrown",
-                                     land=(-2.8, 0.9), yaw=-70, side=-1.0)
-    return KA.apply_fall(va, f, ctx["fall"], ctx["drop_limbs"], look_at=socket)
+                                     land=(-2.8, 0.9), yaw=-70, side=-1.0, look_at=socket,
+                                     start_limbs=ctx["drop_limbs"])
+    return KA.apply_fall(va, f, ctx["fall"])
 
 
 # his claw (left hand): Tm-relative points (vectors) or worked-out ones (names), armature space
@@ -196,6 +220,26 @@ CLAW = KA.Live(
 def kill(an, ctx, f):
     pl = ctx["pl"]
     ctx.setdefault("va", KA.VictimAnimator())
+    if ctx["play"]:  # his Kill action is already animated (edited by hand): just play it
+        if f == GRAB:
+            neck = pl.point_to_blender(KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH) @ NECK)
+            ctx["grip_local"] = an.pb["RightHand"].matrix.inverted() @ neck
+        v = victim(an, ctx, f)
+    else:
+        v = pose_him(an, ctx, f)
+    ctx["claw_v"] = pl.point_to_victim(an.pb["LeftLowerArm"].head.lerp(an.pb["LeftLowerArm"].tail, 0.7))
+    ctx["claw_tip_v"] = pl.point_to_victim(an.pb["LeftHand"].tail)
+    ctx["vhead"] = pl.to_blender(v.head_world()).translation
+    if os.environ.get("KILL_DEBUG"):
+        D = an.pb["Head"].matrix @ an.pb["Head"].bone.matrix_local.inverted()
+        d = (D @ SOCKET - ctx["vhead"]).length
+        print(f"DBG {f} socket-head {d:.2f} m")
+    return v
+
+
+def pose_him(an, ctx, f):
+    """Generates his half (the original keyed version, before it was edited by hand in Blender)."""
+    pl = ctx["pl"]
     monster_body(an, f, ctx)
     Tm = an.rest_delta("UpperTorso")
     # the right hand (free): drawn back, lunges for the neck, hoists them, flings them away
@@ -252,13 +296,6 @@ def kill(an, ctx, f):
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
     bpy.context.view_layer.update()
-    ctx["claw_v"] = pl.point_to_victim(an.pb["LeftLowerArm"].head.lerp(an.pb["LeftLowerArm"].tail, 0.7))
-    ctx["claw_tip_v"] = pl.point_to_victim(an.pb["LeftHand"].tail)
-    ctx["vhead"] = pl.to_blender(v.head_world()).translation
-    if os.environ.get("KILL_DEBUG"):
-        D = an.pb["Head"].matrix @ an.pb["Head"].bone.matrix_local.inverted()
-        d = (D @ SOCKET - ctx["vhead"]).length
-        print(f"DBG {f} socket-head {d:.2f} m")
     return v
 
 
@@ -271,13 +308,16 @@ lined up where the game should put him: 3.8 studs in front of the player, facing
 """
 
 
-def main(blend, export_dir, preview):
-    ctx = K.run_kill(blend, "Receiver_Rig", LENGTH, KM, DISTANCE, kill, None, preview, "Receiver_Kill_Victim", MARKERS)
+def main(blend, export_dir, preview, regenerate=False):
+    ctx = K.run_kill(blend, "Receiver_Rig", LENGTH, KM, DISTANCE, kill, None, preview, "Receiver_Kill_Victim", MARKERS,
+                     play=not regenerate)
     template = os.path.normpath(os.path.join(HERE, "..", "..", "shared", "r6", "Blender_R6.blend"))
+    fall = ctx["fall"]
     K.write_r6_blend(template, os.path.join(export_dir, "Receiver_Kill_Victim.blend"), ctx["parts"], "Receiver_Kill_Victim",
-                     MARKERS, (blend, "Receiver_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE)
+                     MARKERS, (blend, "Receiver_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE,
+                     keys=set(R6_KEYS) | K.key_frames(fall), sharp=set(R6_SHARP) | set(fall["impact"]))
     print("kill written")
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:4], regenerate="--regenerate-monster" in sys.argv)

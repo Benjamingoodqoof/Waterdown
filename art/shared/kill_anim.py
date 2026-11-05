@@ -114,6 +114,30 @@ class VictimAnimator:
 
     def __init__(self):
         self.rot = {}
+        self.limb_state = {}
+
+    def orient(self, f, v, limb, O):
+        """Sets a limb from its wanted orientation O (3x3, HRP axes: what its hanging direction
+        maps to is where it points). A limb pointing (nearly) straight up has no clear twist, and
+        working each frame out from scratch would flip it right round; so each frame carries on
+        from the last one's orientation (turned by the smallest swing to the new direction), with
+        the twist eased back toward the wanted one whenever the limb isn't pointing up."""
+        d = (O @ HANG).normalized()
+        st = self.limb_state.get(limb)
+        if st is not None and st[0] == f - 1:
+            Op, dp = st[1], st[2]
+            R = dp.rotation_difference(d).to_matrix() @ Op
+            up = v.torso.to_3x3() @ Vector((0, 1, 0))
+            if d.angle(up) > math.radians(35):
+                q = (O @ R.inverted()).to_quaternion()
+                if q.w < 0:
+                    q.negate()
+                step = min(0.1, math.radians(5) / q.angle) if q.angle > 1e-6 else 0.0  # slow: unseen
+                R = Quaternion().slerp(q, step).to_matrix() @ R
+        else:
+            R = O.copy()
+        self.limb_state[limb] = (f, R.copy(), d.copy())
+        v.rotate(limb, (v.torso.to_3x3().inverted() @ R).to_4x4())
 
     def torso_from_hips(self, hips, rot_deg):
         """The torso CFrame pivoting on its hips at `hips` (HRP space)."""
@@ -139,9 +163,9 @@ class VictimAnimator:
 
         for limb, d in (limbs or {}).items():
             n = lag["arms"] if "Arm" in limb else lag["legs"]
-            v.point(limb, (lagged(n) @ Vector(d)).normalized())
+            self.orient(f, v, limb, lagged(n) @ dir_q(d).to_matrix())
         for limb, d in (limbs_w or {}).items():
-            v.point(limb, Vector(d).normalized())
+            self.orient(f, v, limb, cur @ dir_q(cur.inverted() @ Vector(d)).to_matrix())
         Rl = lagged(lag["head"])
         if look_at is not None:
             neck = torso @ Vector((0, 1.5, 0))
@@ -211,13 +235,18 @@ def dir_q(d):
 
 def reach_q(v, limb, target, move=(0, 0, 0)):
     """A limb pose (torso frame) putting the limb's far end on `target` (HRP space), its joint
-    moved by `move`."""
+    moved by `move`. It's the same kind of pose as dir_q (a swing from hanging, no twist), so
+    blending between a reach and a fixed pose doesn't spin the limb round."""
     joint = v.torso @ (K.LIMB_JOINT_POS[limb] + Vector(move))
     want = v.torso.to_3x3().inverted() @ (target - joint)
-    rest = K.LIMB_END[limb] - K.LIMB_JOINT_POS[limb]
     if want.length < 1e-4:
         return Quaternion()
-    return rest.rotation_difference(want)
+    rest = K.LIMB_END[limb] - K.LIMB_JOINT_POS[limb]  # the far end isn't on the limb's axis
+    d = want.normalized()
+    for _ in range(4):  # turn the pointing direction until the far end lines up with the target
+        end = dir_q(d) @ rest
+        d = (end.rotation_difference(want) @ d).normalized()
+    return dir_q(d)
 
 
 class PoseKeys:
@@ -247,11 +276,13 @@ class PoseKeys:
                 t = EASE[ease]((f - f0) / (f1 - f0)) if f1 > f0 else 1.0
                 qa, ma = self._val(a, resolve)
                 qb, mb = self._val(b, resolve)
+                if qa.dot(qb) < 0:  # the short way round
+                    qb = -qb
                 return qa.slerp(qb, t), ma.lerp(mb, t)
         return self._val(ks[-1][1], resolve)
 
 
-def kick_keys(leg, t0, t1, beat=5, a0=1.0, a1=0.5, phase=0):
+def kick_keys(leg, t0, t1, beat=6, a0=1.0, a1=0.5, phase=0):
     """Keys for a held body's leg kicking: the knee driven up (the leg swung forward and moved
     up into the hip) then stamped straight down, every `beat` frames, strength a0 -> a1."""
     sx = 1 if leg == "Right Leg" else -1
@@ -263,39 +294,42 @@ def kick_keys(leg, t0, t1, beat=5, a0=1.0, a1=0.5, phase=0):
         if (i + phase) % 2 == 0:
             out.append((f, ((sx * 0.15, -0.6 + 0.1 * (1 - a), -0.8 * a), (0, 0.5 * a, -0.15 * a)), "io"))
         else:
-            out.append((f, ((sx * 0.08, -1, 0.35 * a), (0, 0.05, 0)), "o"))
+            out.append((f, ((sx * 0.08, -1, 0.35 * a), (0, 0.05, 0)), "io"))
     return out
 
 
 def limb_pose(va, v, f, limb, q, move, lag=0):
     """Sets a limb from a torso-frame pose, dragging `lag` frames behind the torso's turning."""
     cur = v.torso.to_3x3().normalized()
-    if lag:
-        Rl = va.rot.get(f - lag, va.rot.get(max([k for k in va.rot if k <= f] or [f]), cur))
-        R = cur.inverted() @ Rl @ q.to_matrix()
-    else:
-        R = q.to_matrix()
-    v.rotate(limb, R.to_4x4())
+    Rl = va.rot.get(f - lag, va.rot.get(max([k for k in va.rot if k <= f] or [f]), cur)) if lag else cur
+    va.orient(f, v, limb, Rl @ q.to_matrix())
     K.dislocate(v, limb, move)
 
 
 def flinch_tracks(t0, t1, step="Right Leg", big=1.0):
-    """A flinch from standing (t0) to braced (t1): a quick step back on one leg (the knee bent as
-    it travels), the torso rocking back and turning from the threat, both hands thrown up in
-    front of the face with the elbows bent, the head ducking."""
+    """A flinch from standing (t0) to braced (t1): a startled jerk back first (the head and
+    shoulders), then a step back on one leg (the knee bent as it travels), the torso rocking back
+    and turning from the threat, both hands coming up in front of the face with the elbows
+    bent, the head ducking."""
+    tj = t0 + 2  # the startle
     tm = (t0 + t1) // 2
     other = "Left Leg" if step == "Right Leg" else "Right Leg"
     sx = 1 if step == "Right Leg" else -1
     return {
-        "hips": Track((t0, (0, -1, 0)), (tm, (0, -1.05, 0.2 * big), "o"), (t1, (0, -1.15, 0.5 * big), "o3")),
-        "rot": Track((t0, (0, 0, 0)), (tm, (-5, 0, 0), "o"), (t1, (14 * big, -10 * sx, -5 * sx), "o3")),
-        "feet": {step: Track((t0, (sx * 0.5, -3, 0)), (tm, (sx * 0.55, -2.6, 0.5 * big), "o"), (t1, (sx * 0.6, -3, 1.1 * big), "i")),
+        "hips": Track((t0, (0, -1, 0)), (tj, (0, -0.98, 0.04), "io"), (tm, (0, -1.05, 0.22 * big), "io"),
+                      (t1, (0, -1.15, 0.5 * big), "io")),
+        "rot": Track((t0, (0, 0, 0)), (tj, (6, 0, 0), "io"), (tm, (2, -4 * sx, 0), "io"),
+                     (t1, (14 * big, -10 * sx, -5 * sx), "io")),
+        "feet": {step: Track((t0, (sx * 0.5, -3, 0)), (tj, (sx * 0.5, -3, 0)), (tm, (sx * 0.55, -2.6, 0.5 * big), "io"),
+                             (t1, (sx * 0.6, -3, 1.1 * big), "i")),
                  other: Track((t0, (-sx * 0.5, -3, 0)), (t1, (-sx * 0.45, -3, 0.1)))},
-        "arms": {"Right Arm": PoseKeys((t0, ((0, -1, 0), (0, 0, 0))), (tm, ((0.3, -0.6, -0.6), (0, 0.1, -0.1)), "o"),
-                                       (t1, ((-0.15, 0.5, -0.85), (-0.2, 0.3, -0.3)), "o3")),
-                 "Left Arm": PoseKeys((t0, ((0, -1, 0), (0, 0, 0))), (tm, ((-0.3, -0.5, -0.65), (0, 0.1, -0.1)), "o"),
-                                      (t1, ((0.2, 0.6, -0.8), (0.2, 0.35, -0.3)), "o3"))},
-        "head": Track((t0, (6, 0, 0)), (tm, (12, 0, 0)), (t1, (-16, 12 * sx, 4 * sx), "o")),
+        "arms": {"Right Arm": PoseKeys((t0, ((0, -1, 0), (0, 0, 0))), (tj, ((0.25, -0.9, 0.1), (0, 0.05, 0)), "io"),
+                                       (tm, ((0.2, -0.4, -0.75), (-0.05, 0.15, -0.15)), "io"),
+                                       (t1, ((-0.15, 0.5, -0.85), (-0.2, 0.3, -0.3)), "io")),
+                 "Left Arm": PoseKeys((t0, ((0, -1, 0), (0, 0, 0))), (tj, ((-0.25, -0.9, 0.1), (0, 0.05, 0)), "io"),
+                                      (tm, ((-0.2, -0.35, -0.8), (0.05, 0.15, -0.15)), "io"),
+                                      (t1, ((0.2, 0.6, -0.8), (0.2, 0.35, -0.3)), "io"))},
+        "head": Track((t0, (6, 0, 0)), (tj, (18, 0, 0), "io"), (tm, (4, 6 * sx, 2 * sx), "io"), (t1, (-16, 12 * sx, 4 * sx), "io")),
     }
 
 
@@ -318,66 +352,72 @@ def apply_flinch(va, f, tr, look_at=None, arms=None):
     return v
 
 
-def fall_tracks(p0, r0, s, kind="drop", land=(0.2, 1.45), yaw=0.0, side=1.0):
+def fall_tracks(p0, r0, s, kind="drop", land=(0.2, 1.45), yaw=0.0, side=1.0, look_at=None, start_limbs=None):
     """A posed fall onto the back, from the torso at p0 turned r0 (degrees) at frame s.
 
-    kind "drop": let go: the feet hit, the knees buckle, the body tips back and slams down.
-    kind "thrown": flung: tumbling through the air, the back hits, a bounce and a slide.
-    Both end the same way, posed rather than lerped: arms flung out at the impact, a bounce
-    (the legs lift off the floor a little and slap back down), then a settle with one arm
-    thrown up past the head, the other along the side, the legs flat and splayed, the head
-    rolled to one side. `land` is (dx, dz) to where the body
-    lies, `yaw` the way the lying body turns (0: head away from where it fell from), `side`
-    mirrors the pose. Returns tracks for apply_fall."""
+    kind "drop": let go: falls onto its feet, the knees give, buckle, and the body tips back
+    and slams down (pivoting on its feet: a dz of about 3 studs keeps them where they landed). kind "thrown": flung through the air, turning, and slams down on its back.
+    The impact is a hard stop: the torso hits flat, the arms and legs (still in the air,
+    dragging behind) slap down a moment later, the body bounces once and comes to rest. The
+    pose it lands in is the pose it stays in (dead bodies don't rearrange themselves): one arm
+    thrown out past the head, the other out from the side, the legs flat and apart, the head
+    rolled toward look_at (the killer) if given. `land` is (dx, dz) to where it lies, `yaw`
+    turns the lying body, `side` mirrors the pose. Returns tracks for apply_fall, with "impact"
+    frames for keying."""
     x, z = p0.x, p0.z
     dx, dz = land
     sd = side
     lying = Vector((x + dx, -2.5, z + dz))
-    if kind == "drop":
-        F, B, L = s + 4, s + 8, s + 13
-        pos = [(s, p0), (F, (x, min(p0.y, 0.0), z), "i"), (B, (x + 0.2 * dx, -1.2, z + 0.25 * dz), "io"), (L, lying, "i")]
-        rot = [(s, r0), (F, (-8, yaw * 0.2, -4 * sd), "i"), (B, (24, yaw * 0.5, -8 * sd), "io"), (L, (90, yaw, -10 * sd), "i")]
-        limbs = {"Right Arm": [(F, (0.25, -0.9, -0.3)), (B, (0.6, -0.2, -0.75), "o"), (L, (1.0, 0.25, -0.1), "o")],
-                 "Left Arm": [(F, (-0.25, -0.9, -0.35)), (B, (-0.55, -0.1, -0.8), "o"), (L, (-1.0, 0.15, -0.1), "o")],
-                 "Right Leg": [(F, (0.1, -1, 0.0)), (B, (0.25, -0.5, -0.85), "io"), (L, (0.15, -1, -0.1), "i")],
-                 "Left Leg": [(F, (-0.1, -1, 0.0)), (B, (-0.25, -0.55, -0.8), "io"), (L, (-0.12, -0.95, -0.3), "i")]}
-        moves = {"Right Leg": [(F, (0, 0, 0)), (B, (0, 0.5, -0.15), "io"), (L, (0, 0, 0), "i")],
-                 "Left Leg": [(F, (0, 0, 0)), (B, (0, 0.5, -0.15), "io"), (L, (0, 0, 0), "i")]}
-        head = [(s, (-10, 0, 0)), (F, (-30, 0, 10 * sd), "i"), (B, (10, 0, 6 * sd), "o"), (L, (30, 0, 0), "i")]
-    else:
-        A_, L = s + 4, s + 9
-        mid = p0 + Vector((0.5 * dx, 0.35, 0.5 * dz))
-        pos = [(s, p0), (A_, mid, "o"), (L, lying, "i")]
-        rot = [(s, r0), (A_, (45, yaw * 0.6, 28 * sd), "io"), (L, (90, yaw, -12 * sd), "i")]
-        limbs = {"Right Arm": [(A_, (0.75, 0.6, 0.25), "o"), (L, (1.0, 0.3, -0.1), "o")],
-                 "Left Arm": [(A_, (-0.7, 0.65, -0.3), "o"), (L, (-1.0, 0.1, -0.15), "o")],
-                 "Right Leg": [(A_, (0.3, -0.7, -0.6), "o"), (L, (0.2, -1, -0.15), "i")],
-                 "Left Leg": [(A_, (-0.2, -0.8, 0.5), "o"), (L, (-0.12, -0.95, -0.3), "i")]}
-        moves = {"Right Leg": [(A_, (0, 0.35, -0.1), "o"), (L, (0, 0, 0), "i")],
-                 "Left Leg": [(A_, (0, 0.1, 0.0), "o"), (L, (0, 0, 0), "i")]}
-        head = [(s, (-25, 0, 10 * sd)), (A_, (-35, 15 * sd, 20 * sd), "io"), (L, (35, 0, 0), "i")]
-    slide = Vector((0.12 * dx, 0, 0.12 * dz)) if kind == "thrown" else Vector((0, 0, 0))
-    pos += [(L + 3, lying + slide * 0.6 + Vector((0, 0.3 if kind == "thrown" else 0.2, 0)), "o"),
-            (L + 7, lying + slide, "i"), (L + 9, lying + slide + Vector((0, 0.05, 0)), "o"), (L + 14, lying + slide, "io")]
-    rot += [(L + 3, (82, yaw, -10 * sd), "o"), (L + 7, (90, yaw, -12 * sd), "i"), (L + 14, (90, yaw + 4 * sd, -16 * sd), "io")]
-    head += [(L + 3, (-10, 0, 6 * sd), "o"), (L + 7, (10, 15 * sd, 0), "i"), (L + 14, (0, 55 * sd, 10 * sd), "io")]
-    # settle: one arm up past the head, the other along the side; the legs flat, one splayed out
+    flat = (90, yaw, 0)
     up, down = ("Right Arm", "Left Arm") if sd > 0 else ("Left Arm", "Right Arm")
-    bent, straight = ("Left Leg", "Right Leg") if sd > 0 else ("Right Leg", "Left Leg")
-    ux, dx_ = (1 if up == "Right Arm" else -1), (1 if down == "Right Arm" else -1)
-    bx, sx = (1 if bent == "Right Leg" else -1), (1 if straight == "Right Leg" else -1)
-    limbs[up] += [(L + 3, (ux * 0.9, 0.45, -0.3), "o"), (L + 7, (ux * 0.95, 0.3, -0.05), "i"), (L + 14, (ux * 0.6, 0.8, -0.05), "io")]
-    limbs[down] += [(L + 3, (dx_ * 0.85, 0.3, -0.4), "o"), (L + 7, (dx_ * 0.9, 0.05, -0.05), "i"), (L + 14, (dx_ * 0.3, -0.95, -0.05), "io")]
-    limbs[bent] += [(L + 3, (bx * 0.15, -0.9, -0.35), "o"), (L + 7, (bx * 0.2, -1, -0.08), "i"), (L + 14, (bx * 0.35, -0.95, -0.02), "io")]
-    limbs[straight] += [(L + 3, (sx * 0.15, -0.92, -0.3), "o"), (L + 7, (sx * 0.15, -1, -0.05), "i"), (L + 14, (sx * 0.25, -1, -0.02), "io")]
-    moves.setdefault(bent, [(s, (0, 0, 0))])
-    moves[bent] += [(L + 7, (0, 0, 0), "i")]
-    moves.setdefault(straight, [(s, (0, 0, 0))])
-    moves[straight] += [(L + 7, (0, 0, 0), "i")]
+    ux, dwx = (1 if up == "Right Arm" else -1), (1 if down == "Right Arm" else -1)
+    rest = {up: (ux * 0.55, 0.83, 0.0), down: (dwx * 0.6, -0.8, 0.0),
+            "Right Leg": (0.3 if sd > 0 else 0.12, -0.96, 0.0), "Left Leg": (-0.12 if sd > 0 else -0.3, -0.96, 0.0)}
+    air = {k: (v[0], v[1], -0.45 if "Arm" in k else -0.35) for k, v in rest.items()}  # dragging behind
+    if kind == "drop":
+        F, B, L = s + 6, s + 12, s + 21
+        pos = [(s, p0), (F, (x, min(p0.y, -0.15), z), "i"), (B, (x + 0.2 * dx, -1.3, z + 0.3 * dz), "io"), (L, lying, "i")]
+        rot = [(s, r0), (F, (-6, yaw * 0.2, -3 * sd), "i"), (B, (28, yaw * 0.5, -6 * sd), "io"), (L, flat, "i")]
+        limbs = {"Right Arm": [(F, (0.2, -0.95, -0.2), "io"), (B, (0.55, -0.3, -0.75), "io")],
+                 "Left Arm": [(F, (-0.2, -0.95, -0.25), "io"), (B, (-0.5, -0.2, -0.8), "io")],
+                 "Right Leg": [(F, (0.08, -1, -0.05)), (B, (0.2, -0.55, -0.8), "io")],
+                 "Left Leg": [(F, (-0.08, -1, -0.05)), (B, (-0.2, -0.6, -0.78), "io")]}
+        # the knees give as the feet land, then buckle (the legs moved up into the hips)
+        moves = {"Right Leg": [(F, (0, 0.25, -0.05), "o"), (B, (0, 0.5, -0.15), "io"), (L - 2, (0, 0.1, 0))],
+                 "Left Leg": [(F, (0, 0.25, -0.05), "o"), (B, (0, 0.5, -0.15), "io"), (L - 2, (0, 0.1, 0))]}
+        head = [(s, (-10, 0, 0)), (F, (-24, 0, 8 * sd), "i"), (B, (12, 0, 4 * sd), "io")]
+    else:
+        A_, L = s + 6, s + 13
+        mid = p0 + Vector((0.5 * dx, 0.4, 0.5 * dz))
+        pos = [(s, p0), (A_, mid, "o"), (L, lying, "i")]
+        rot = [(s, r0), (A_, (45, yaw * 0.6, 20 * sd), "io"), (L, flat, "i")]
+        limbs = {"Right Arm": [(A_, (0.75, 0.55, 0.3), "io")], "Left Arm": [(A_, (-0.7, 0.6, -0.3), "io")],
+                 "Right Leg": [(A_, (0.3, -0.7, -0.6), "io")], "Left Leg": [(A_, (-0.2, -0.8, 0.5), "io")]}
+        moves = {"Right Leg": [(A_, (0, 0.3, -0.1), "io"), (L - 2, (0, 0, 0))], "Left Leg": [(A_, (0, 0.1, 0), "io"), (L - 2, (0, 0, 0))]}
+        head = [(s, (-25, 0, 10 * sd)), (A_, (-30, 15 * sd, 15 * sd), "io")]
+    # the head comes to rest rolled toward the killer (or to one side), chin a little down
+    hy = 45 * sd
+    if look_at is not None:
+        T = Matrix.Translation(lying) @ euler(Vector(flat))
+        d = T.to_3x3().inverted() @ (look_at - T @ Vector((0, 1.5, 0)))
+        hy = max(-75.0, min(75.0, math.degrees(math.atan2(-d.x, -d.z))))
+    head_rest = (-12, hy, 0)
+    bounce = 0.35 if kind == "drop" else 0.45
+    slide = Vector((0.1 * dx, 0, 0.1 * dz)) if kind == "thrown" else Vector((0, 0, 0))
+    # L: the torso hits; L+2 the limbs slap down and it bounces; L+5 down again; L+9 at rest
+    pos += [(L + 2, lying + slide * 0.5 + Vector((0, bounce, 0)), "o"), (L + 5, lying + slide * 0.9, "i"),
+            (L + 9, lying + slide, "io")]
+    rot += [(L + 2, (84, yaw, 0), "o"), (L + 5, flat, "i")]
+    for k in limbs:  # still in the air as the torso hits, then slapped down (carried by its bounce)
+        limbs[k] += [(L, air[k], "i"), (L + 2, rest[k], "i")]
+    for k in ("Right Leg", "Left Leg"):
+        moves.setdefault(k, [])
+        moves[k] += [(L, (0, 0, 0))]
+    head += [(L, (22, 0, 0), "i"), (L + 2, (-4, hy * 0.6, 0), "o"), (L + 5, (-14, hy, 0), "io"), (L + 9, head_rest, "io")]
     return {
-        "start": s, "end": L + 14, "land": L,
+        "start": s, "end": L + 9, "land": L, "impact": (L, L + 5),
         "pos": Track(*pos), "rot": Track(*rot), "head": Track(*head),
-        "limbs": {k: Track(*([(s, HANG)] + v)) for k, v in limbs.items()},
+        "limbs": {k: Track(*([(s, Vector((start_limbs or {}).get(k, HANG)))] + v)) for k, v in limbs.items()},
         "moves": {k: Track(*([(s, (0, 0, 0))] + [m for m in v if m[0] > s])) for k, v in moves.items()},
     }
 
@@ -387,15 +427,15 @@ def corners(cfm, size):
     return [cfm @ Vector((sx * hx, sy * hy, sz * hz)) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]
 
 
-def floor_clamp(v, floor=-3.0, body=True):
-    """Keeps a pose out of the floor: lifts the whole body if the torso or head sink into it,
-    then lifts any limb that still does, by moving it (a fraction of a stud, unseen)."""
+def floor_clamp(v, floor=-3.0):
+    """Keeps a pose out of the floor: lifts the body if the torso sinks into it, then lifts any
+    limb that still does by moving it (a fraction of a stud). The head is round, not a box, so
+    it's left alone (it rests on the floor where the box's corners would poke through)."""
     parts = v.parts()
-    if body:
-        low = min(c.y for p in ("Torso", "Head") for c in corners(parts[p], K.SIZES[p]))
-        if low < floor:
-            v.torso = Matrix.Translation((0, floor - low, 0)) @ v.torso
-            parts = v.parts()
+    low = min(c.y for c in corners(parts["Torso"], K.SIZES["Torso"]))
+    if low < floor:
+        v.torso = Matrix.Translation((0, floor - low, 0)) @ v.torso
+        parts = v.parts()
     inv = v.torso.to_3x3().inverted()
     for limb in ("Right Arm", "Left Arm", "Right Leg", "Left Leg"):
         low = min(c.y for c in corners(parts[limb], K.SIZES[limb]))
@@ -404,26 +444,12 @@ def floor_clamp(v, floor=-3.0, body=True):
     return v
 
 
-def apply_fall(va, f, fall, start_limbs=None, look_at=None):
-    """The posed fall at frame f. start_limbs: {limb: direction} the limbs had when it began,
-    blended out over the first few frames so nothing pops. look_at: a point (HRP space) the
-    head rolls round to face once the body has settled (the killer: the last thing they see)."""
+def apply_fall(va, f, fall):
+    """The posed fall at frame f (its limbs start from where they were when it began)."""
     torso = Matrix.Translation(fall["pos"](f)) @ euler(fall["rot"](f))
-    limbs = {}
-    w = min(1.0, (f - fall["start"]) / 4.0)
-    for k, tr in fall["limbs"].items():
-        d = tr(f)
-        if start_limbs and k in start_limbs and w < 1:
-            d = Vector(start_limbs[k]).lerp(d, w)
-        limbs[k] = d
-    head, look = fall["head"](f), None
-    if look_at is not None:
-        lw = K.smoothstep(fall["land"] + 5, fall["end"] + 2, f)
-        if lw > 0:
-            ahead = torso @ Vector((0, 1.5, -6))
-            look = ahead.lerp(look_at, lw)
-            head = head * (1 - lw) + Vector((8, 0, 6)) * lw
-    v = va.build(f, torso, head=head, look_at=look, limbs=limbs, lag={"arms": 2, "legs": 1, "head": 2})
+    limbs = {k: tr(f) for k, tr in fall["limbs"].items()}
+    # the limbs drag behind the body's turning (it has stopped turning by the time it's at rest)
+    v = va.build(f, torso, head=fall["head"](f), limbs=limbs, lag={"arms": 2, "legs": 1, "head": 2})
     for k, tr in fall["moves"].items():
         K.dislocate(v, k, tr(f))
     return floor_clamp(v)

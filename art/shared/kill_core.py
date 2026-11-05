@@ -336,34 +336,48 @@ def window(f, a, b, c, d):
 
 
 def run_kill(blend, rig_name, length, k, distance, fn, out_rbxmx, preview_blend, victim_name, markers,
-             loc_bones=("LowerTorso",), action="Kill"):
+             loc_bones=("LowerTorso",), action="Kill", play=False):
     """Keys the monster's `action` and the victim's KeyframeSequence together. fn(an, ctx, f)
     poses the monster for frame f and returns the Victim's pose; ctx holds the Placement (pl) and
     anything fn wants to keep between frames. Saves the blend, writes the .rbxmx, and saves a
-    preview blend with the victim as boxes and a first-person camera on its head."""
+    preview blend with the victim as boxes and a first-person camera on its head.
+
+    play=True: the monster's `action` is already animated (e.g. edited by hand in Blender) and is
+    left exactly as it is; each frame of it is played and fn only works out the victim
+    (ctx["play"] is True)."""
     import anim_core as A
     bpy.ops.wm.open_mainfile(filepath=os.path.abspath(blend))
     rig = bpy.data.objects[rig_name]
     an = A.Animator(rig, loc_bones)
     root = rig.data.bones["Root"].head_local.copy()
-    ctx = {"pl": Placement(k, distance, root), "k": k}
+    ctx = {"pl": Placement(k, distance, root), "k": k, "play": play}
     rig.animation_data_create()
-    old = bpy.data.actions.get(action)
-    if old:
-        bpy.data.actions.remove(old)
-    act = bpy.data.actions.new(action)
-    act.use_fake_user = True
-    rig.animation_data.action = act
     trs, parts = [], []
-    for f in range(length + 1):
-        an.reset()
-        v = fn(an, ctx, f)
-        an.key(f)
-        trs.append(v.transforms())
-        parts.append(v.parts())
-    act.use_frame_range = True
-    act.frame_start, act.frame_end = 0, length
-    act.use_cyclic = False
+    if play:
+        act = bpy.data.actions[action]
+        rig.animation_data.action = act
+        for f in range(length + 1):
+            bpy.context.scene.frame_set(f)
+            v = fn(an, ctx, f)
+            trs.append(v.transforms())
+            parts.append(v.parts())
+        rig.animation_data.action = None
+    else:
+        old = bpy.data.actions.get(action)
+        if old:
+            bpy.data.actions.remove(old)
+        act = bpy.data.actions.new(action)
+        act.use_fake_user = True
+        rig.animation_data.action = act
+        for f in range(length + 1):
+            an.reset()
+            v = fn(an, ctx, f)
+            an.key(f)
+            trs.append(v.transforms())
+            parts.append(v.parts())
+        act.use_frame_range = True
+        act.frame_start, act.frame_end = 0, length
+        act.use_cyclic = False
     an.reset()
     if "Idle" in bpy.data.actions:
         rig.animation_data.action = bpy.data.actions["Idle"]
@@ -372,6 +386,18 @@ def run_kill(blend, rig_name, length, k, distance, fn, out_rbxmx, preview_blend,
         write_keyframes(out_rbxmx, victim_name, trs, markers=markers)
     ctx["parts"] = parts
     ctx["root"] = root
+    if os.environ.get("KILL_DEBUG"):  # how far each limb swings (its pointing) and twists, per frame
+        for limb in ("Right Arm", "Left Arm", "Right Leg", "Left Leg"):
+            rows = []
+            for f in range(1, len(parts)):
+                a3, b3 = parts[f - 1][limb].to_3x3(), parts[f][limb].to_3x3()
+                da, db = a3 @ Vector((0, -1, 0)), b3 @ Vector((0, -1, 0))
+                swing = math.degrees(da.angle(db))
+                xa = da.rotation_difference(db).to_matrix() @ (a3 @ Vector((1, 0, 0)))
+                twist = math.degrees(xa.angle(b3 @ Vector((1, 0, 0))))
+                if swing > 25 or twist > 25:
+                    rows.append((f, round(swing), round(twist)))
+            print("LIMB", limb, rows[:14])
     # the preview scene
     rig.animation_data.action = act
     obs = victim_boxes(k)
@@ -479,51 +505,23 @@ R6_REST = {"Torso": (0, 3, 0), "Head": (0, 4.5, 0), "Right Arm": (1.5, 3, 0), "L
 R6_ORDER = ("Torso", "Head", "Right Arm", "Left Arm", "Right Leg", "Left Leg")
 
 
-def write_r6_blend(template, out_blend, parts_frames, action_name, markers, monster=None, note="", ref=None):
+def write_r6_blend(template, out_blend, parts_frames, action_name, markers, monster=None, note="", ref=None,
+                   keys=(), sharp=(), refine=("Torso",)):
     """Keys the victim onto the R6 rig in `template` (a copy of the user's Blender_R6.blend: its
     InternalArmature has a bone per R6 part, in studs, facing +Y) and saves it as out_blend at
     30 fps. The InternalArmature's constraints to the control rig are muted, so the keys drive
     it directly. monster: (blend, rig name, action, k, distance, root) appends the monster,
-    scaled to studs and playing its kill, as a reference in its own collection."""
-    import anim_core as A
+    scaled to studs and playing its kill, as a reference in its own collection. keys/sharp: the
+    key poses and impact frames (see key_r6_rig)."""
     bpy.ops.wm.open_mainfile(filepath=os.path.abspath(template))
     sc = bpy.context.scene
     sc.render.fps = FPS
     sc.frame_start, sc.frame_end = 0, len(parts_frames) - 1
     arm = bpy.data.objects["InternalArmature"]
-    for pb in arm.pose.bones:
-        for c in pb.constraints:
-            c.mute = True
-        pb.rotation_mode = "QUATERNION"
     ctrl = bpy.data.objects.get("__PrimaryArmature")
     if ctrl:
         ctrl.hide_set(True)
-    arm.animation_data_create()
-    old = bpy.data.actions.get(action_name)
-    if old:
-        bpy.data.actions.remove(old)
-    act = bpy.data.actions.new(action_name)
-    act.use_fake_user = True
-    arm.animation_data.action = act
-    prev = {}
-    for f, parts in enumerate(parts_frames):
-        arm.pose.bones["HumanoidRootPart"].matrix_basis = Matrix.Identity(4)
-        bpy.context.view_layer.update()
-        for name in R6_ORDER:
-            pb = arm.pose.bones[name]
-            cur = Matrix.Translation((0, 3, 0)) @ parts[name]
-            D = AXES @ cur @ Matrix.Translation(R6_REST[name]).inverted() @ AXES.inverted()
-            pb.matrix = D @ pb.bone.matrix_local
-            pb.scale = (1, 1, 1)
-            bpy.context.view_layer.update()
-        for pb in arm.pose.bones:
-            q = pb.rotation_quaternion.copy()
-            if pb.name in prev and prev[pb.name].dot(q) < 0:
-                q.negate()
-                pb.rotation_quaternion = q
-            prev[pb.name] = q.copy()
-            pb.keyframe_insert("rotation_quaternion", frame=f, group=pb.name)
-            pb.keyframe_insert("location", frame=f, group=pb.name)
+    act = key_r6_rig(arm, parts_frames, action_name, forced=keys, sharp=sharp, refine=refine)
     for f, name in (markers or {}).items():
         m = sc.timeline_markers.new(name, frame=f)
         m.select = False
@@ -656,22 +654,11 @@ def reach_r6_off(v, limb, target, offset):
     dislocate(v, limb, offset)
 
 
-def key_r6_rig(arm, parts_frames, action_name):
-    """Keys an R6 InternalArmature (bones in studs, facing +Y, constraints muted) from part
-    CFrames in its own HRP space, one key per frame."""
-    for pb in arm.pose.bones:
-        for c in pb.constraints:
-            c.mute = True
-        pb.rotation_mode = "QUATERNION"
-    arm.animation_data_create()
-    old = bpy.data.actions.get(action_name)
-    if old:
-        bpy.data.actions.remove(old)
-    act = bpy.data.actions.new(action_name)
-    act.use_fake_user = True
-    arm.animation_data.action = act
+def _r6_values(arm, parts_frames):
+    """Each R6 bone's local rotation and location at every frame (quaternions kept continuous)."""
+    vals = {pb.name: [] for pb in arm.pose.bones}
     prev = {}
-    for f, parts in enumerate(parts_frames):
+    for parts in parts_frames:
         arm.pose.bones["HumanoidRootPart"].matrix_basis = Matrix.Identity(4)
         bpy.context.view_layer.update()
         for name in R6_ORDER:
@@ -685,10 +672,137 @@ def key_r6_rig(arm, parts_frames, action_name):
             q = pb.rotation_quaternion.copy()
             if pb.name in prev and prev[pb.name].dot(q) < 0:
                 q.negate()
-                pb.rotation_quaternion = q
             prev[pb.name] = q.copy()
-            pb.keyframe_insert("rotation_quaternion", frame=f, group=pb.name)
-            pb.keyframe_insert("location", frame=f, group=pb.name)
+            vals[pb.name].append((q, pb.location.copy()))
+    return vals
+
+
+def _channelbag(act):
+    for layer in act.layers:
+        for strip in layer.strips:
+            for bag in strip.channelbags:
+                return bag
+    return None
+
+
+def key_r6_rig(arm, parts_frames, action_name, forced=(), sharp=(), constant=False, tol_deg=6.0, tol_loc=0.2,
+               refine=("Torso",)):
+    """Keys an R6 InternalArmature (bones in studs, facing +Y, constraints muted) from part
+    CFrames in its own HRP space, as key poses rather than a key on every frame.
+
+    Smooth (the default): keys at `forced` (the key poses) and the first and last frame, with
+    every bone keyed on the same frames, like posing the whole body; Blender's Bezier does the
+    in-betweens. Only where the body itself (the `refine` bones: the torso, which is what's held
+    by the monster) would drift from where it has to be by more than tol_deg / tol_loc studs is
+    a breakdown key added. Keys ease in and out (auto-clamped handles), except the `sharp` ones (impacts), whose
+    vector handles give a hard stop. constant=True (stop motion): a key wherever the pose
+    changes, held until the next one."""
+    for pb in arm.pose.bones:
+        for c in pb.constraints:
+            c.mute = True
+        pb.rotation_mode = "QUATERNION"
+    arm.animation_data_create()
+    old = bpy.data.actions.get(action_name)
+    if old:
+        bpy.data.actions.remove(old)
+    act = bpy.data.actions.new(action_name)
+    act.use_fake_user = True
+    arm.animation_data.action = act
+    vals = _r6_values(arm, parts_frames)
+    last = len(parts_frames) - 1
+    if os.environ.get("KILL_DEBUG"):
+        for b in vals:
+            jumps = [(f, round(math.degrees(vals[b][f - 1][0].rotation_difference(vals[b][f][0]).angle)))
+                     for f in range(1, last + 1)]
+            big = [j for j in jumps if j[1] > 30]
+            print("R6 jumps", b, "max", max(j[1] for j in jumps), big[:12])
+    if os.environ.get("KILL_TOL"):
+        tol_deg, tol_loc = (float(x) for x in os.environ["KILL_TOL"].split(","))
+    bones = list(vals)
+
+    def differs(i, j, eps_deg=0.05, eps_loc=1e-3):
+        for b in bones:
+            (qa, la), (qb, lb) = vals[b][i], vals[b][j]
+            if math.degrees(qa.rotation_difference(qb).angle) > eps_deg or (la - lb).length > eps_loc:
+                return True
+        return False
+
+    def put(frames):
+        for f in frames:
+            for b in bones:
+                pb = arm.pose.bones[b]
+                pb.rotation_quaternion, pb.location = vals[b][f]
+                pb.keyframe_insert("rotation_quaternion", frame=f, group=b)
+                pb.keyframe_insert("location", frame=f, group=b)
+
+    def shape(bag):
+        for fc in bag.fcurves:
+            for kp in fc.keyframe_points:
+                f = round(kp.co[0])
+                if constant:
+                    kp.interpolation = "CONSTANT"
+                    continue
+                kp.interpolation = "BEZIER"
+                kind = "VECTOR" if f in sharp else "AUTO_CLAMPED"
+                kp.handle_left_type = kp.handle_right_type = kind
+            fc.update()
+
+    if constant:
+        keys = [0] + [f for f in range(1, last + 1) if differs(f, f - 1)]
+        put(sorted(set(keys) | {last}))
+        shape(_channelbag(act))
+    else:
+        keys = sorted({0, last} | {int(f) for f in forced if 0 <= f <= last} | {int(f) for f in sharp if 0 <= f <= last})
+        put(keys)
+        bag = _channelbag(act)
+        shape(bag)
+        curves = {}
+        for fc in bag.fcurves:
+            b = fc.data_path.split('"')[1]
+            curves.setdefault(b, {})[(fc.data_path.rsplit(".", 1)[1], fc.array_index)] = fc
+        for _ in range(40):
+            worst = {}
+            for f in range(last + 1):
+                err, who = 0.0, ""
+                for b in refine:
+                    c = curves[b]
+                    q = Quaternion([c[("rotation_quaternion", i)].evaluate(f) for i in range(4)]).normalized()
+                    loc = Vector([c[("location", i)].evaluate(f) for i in range(3)])
+                    qv, lv = vals[b][f]
+                    e1 = math.degrees(q.rotation_difference(qv).angle) / tol_deg
+                    e2 = (loc - lv).length / tol_loc
+                    if max(e1, e2) > err:
+                        err, who = max(e1, e2), b + ("/rot" if e1 > e2 else "/loc")
+                if err > 1.0:
+                    seg = max(k for k in keys if k <= f)
+                    if err > worst.get(seg, (0, 0))[0]:
+                        worst[seg] = (err, f, who)
+            if os.environ.get("KILL_DEBUG"):
+                print("R6 pass", sorted((f, round(e, 1), w) for e, f, w in worst.values()))
+            new = sorted({f for _, f, _ in worst.values()} - set(keys))
+            if not new:
+                break
+            put(new)
+            keys = sorted(set(keys) | set(new))
+            shape(bag)
     act.use_frame_range = True
-    act.frame_start, act.frame_end = 0, len(parts_frames) - 1
+    act.frame_start, act.frame_end = 0, last
+    n = len(_channelbag(act).fcurves[0].keyframe_points)
+    print(f"{action_name}: {n} key poses over {last + 1} frames")
     return act
+
+
+def key_frames(*things):
+    """Every frame keyed in some Tracks / PoseKeys / Live tracks (or dicts and lists of them):
+    the poses an animation was built from."""
+    out = set()
+    for t in things:
+        if isinstance(t, dict):
+            out |= key_frames(*t.values())
+        elif isinstance(t, (list, tuple)):
+            out |= key_frames(*t)
+        elif hasattr(t, "keys") and isinstance(getattr(t, "keys"), (list, tuple)):
+            for k in t.keys:
+                if isinstance(k[0], (int, float)):
+                    out.add(int(round(k[0])))
+    return out

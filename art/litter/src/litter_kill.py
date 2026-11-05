@@ -98,41 +98,47 @@ def mouth_point(an):
 
 # ---------------------------------------------------------------- the player's key poses
 FLINCH = KA.flinch_tracks(3, 14, "Right Leg", big=1.2)
-# held by the shoulders: straining away from the mouth as it draws back
-H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (21, (-10, 0, 4), "o3"), (LIFTED, (4, 0, -2)), (34, (10, 0, 3), "io"),
-          (38, (14, -6, -3)), (REAR, (18, 8, 0), "io"), (BITE, (-14, 0, 0), "o5"))
-HEAD_H = T((GRAB, FLINCH["head"](GRAB)), (22, (10, 0, 0), "o3"), (LIFTED, (0, 0, 0)), (34, (6, -30, 6), "io"),
-           (38, (8, 28, -6), "io"), (REAR, (14, -34, 6)), (BITE, (0, 0, 0)))
+# The whole body is keyed on the same frames (the key poses), so on the R6 rig Blender eases between
+# whole poses:  18 grabbed by the shoulders  24 / 30 hoisted, kicking  36 / 42 straining away from the
+#   mouth as it draws back  45 the bite (held)  48 the body jerks  52 / 58 / 64 thrashed left, right,
+#   left (lagging the stack)  66 hanging  70 swung back across it and thrown
+H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (24, (-10, 0, 4), "io"), (LIFTED, (4, 0, -2), "io"), (36, (10, 0, 3), "io"),
+          (REAR, (18, 8, 0), "io"), (BITE, (18, 8, 0)))
+HEAD_H = T((GRAB, FLINCH["head"](GRAB)), (24, (10, 0, 0), "io"), (LIFTED, (0, 0, 0), "io"), (36, (6, -30, 6), "io"),
+           (REAR, (14, -34, 6), "io"), (BITE, (14, -34, 6)))
 # in its jaws: thrashed side to side (roll), the body jerking (pitch)
-SWING = T((BITE, (-8, 0, 0)), (47, (10, 0, -10), "o"), (49, (-4, 0, 30), "o"), (52, (-6, 0, 20)), (55, (-4, 0, -32), "o"),
-          (58, (-6, 0, -22)), (61, (-4, 0, 26), "o"), (64, (-8, 0, 10)), (WINDT, (-8, 0, -14), "io"), (THROW, (-10, 0, 0)))
+SWING = T((BITE, (-8, 0, 0)), (48, (10, 0, -10), "o"), (52, (-4, 0, 30), "io"), (58, (-4, 0, -32), "io"),
+          (64, (-6, 0, 24), "io"), (WINDT, (-8, 0, -6), "io"), (THROW, (-10, 0, -14), "io"))
 PIN_R, PIN_L = ((0.15, -1, -0.15), (0, 0.1, 0)), ((-0.15, -1, -0.15), (0, 0.1, 0))
+FLAIL_R, FLAIL_L = ((0.3, -0.7, -0.65), (0, 0.05, 0)), ((-0.3, -0.7, -0.6), (0, 0.05, 0))
 ARMS = {
     "Right Arm": KA.PoseKeys(
-        (GRAB, ((-0.15, 0.5, -0.85), (-0.2, 0.3, -0.3))), (GRAB + 2, PIN_R, "o3"), (24, ((0.2, -0.8, -0.55), (0, 0.05, 0))),
-        (28, PIN_R), (32, ((0.25, -0.75, -0.6), (0, 0.05, 0))), (36, PIN_R), (40, ((0.3, -0.7, -0.65), (0, 0.05, 0))),
-        (BITE, ((0.4, -0.6, -0.7), (0, 0.1, 0)), "o3"), (49, ((0.6, -0.5, -0.6), (0, 0.1, 0)), "o"),
-        (52, ((0.3, -0.9, 0.2), (0, 0.05, 0))), (55, ((0.7, -0.3, -0.5), (0, 0.1, 0)), "o"), (58, ((0.2, -1, 0.1), (0, 0, 0))),
-        (61, ((0.5, -0.6, -0.5), (0, 0.05, 0)), "o"), (65, ((0.12, -1, 0.05), (0, 0, 0)), "i"), (THROW, ((0.15, -1, 0.0), (0, 0, 0)))),
+        (GRAB, ((-0.15, 0.5, -0.85), (-0.2, 0.3, -0.3))), (24, PIN_R, "io"), (LIFTED, FLAIL_R, "io"), (36, PIN_R, "io"),
+        (REAR, FLAIL_R, "io"), (BITE, FLAIL_R), (48, ((0.55, -0.5, -0.65), (0, 0.1, 0)), "o"),
+        (52, ((0.3, -0.9, 0.2), (0, 0.05, 0)), "io"), (58, ((0.7, -0.3, -0.5), (0, 0.1, 0)), "io"),
+        (64, ((0.5, -0.6, -0.5), (0, 0.05, 0)), "io"), (WINDT, ((0.12, -1, 0.05), (0, 0, 0)), "io"),
+        (THROW, ((0.15, -1, 0.0), (0, 0, 0)), "io")),
     "Left Arm": KA.PoseKeys(
-        (GRAB, ((0.2, 0.6, -0.8), (0.2, 0.35, -0.3))), (GRAB + 2, PIN_L, "o3"), (26, ((-0.2, -0.75, -0.6), (0, 0.05, 0))),
-        (30, PIN_L), (34, ((-0.3, -0.7, -0.6), (0, 0.05, 0))), (38, PIN_L), (41, ((-0.25, -0.7, -0.65), (0, 0.05, 0))),
-        (BITE, ((-0.5, -0.5, -0.7), (0, 0.1, 0)), "o3"), (49, ((-0.3, -0.9, 0.2), (0, 0.05, 0)), "o"),
-        (52, ((-0.6, -0.5, -0.6), (0, 0.1, 0))), (55, ((-0.2, -1, 0.1), (0, 0, 0)), "o"), (58, ((-0.7, -0.3, -0.5), (0, 0.1, 0))),
-        (61, ((-0.2, -0.95, 0.1), (0, 0, 0)), "o"), (65, ((-0.12, -1, 0.05), (0, 0, 0)), "i"), (THROW, ((-0.15, -1, 0.0), (0, 0, 0)))),
+        (GRAB, ((0.2, 0.6, -0.8), (0.2, 0.35, -0.3))), (24, PIN_L, "io"), (LIFTED, PIN_L, "io"), (36, FLAIL_L, "io"),
+        (REAR, FLAIL_L, "io"), (BITE, FLAIL_L), (48, ((-0.55, -0.5, -0.65), (0, 0.1, 0)), "o"),
+        (52, ((-0.6, -0.5, -0.6), (0, 0.1, 0)), "io"), (58, ((-0.2, -1, 0.1), (0, 0, 0)), "io"),
+        (64, ((-0.2, -0.95, 0.1), (0, 0, 0)), "io"), (WINDT, ((-0.12, -1, 0.05), (0, 0, 0)), "io"),
+        (THROW, ((-0.15, -1, 0.0), (0, 0, 0)), "io")),
 }
 LEGS = {
     leg: KA.PoseKeys(
         (GRAB, (((0.05, -0.95, 0.35) if leg == "Right Leg" else (-0.05, -0.95, -0.3)), (0, 0, 0))),
-        (GRAB + 3, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "o"),
-        *KA.kick_keys(leg, 22, 40, beat=4, a0=1.0, a1=1.0, phase=0 if leg == "Right Leg" else 1),
-        (BITE, ((sx * 0.12, -0.5, -0.85), (0, 0.5, -0.15)), "o3"),
-        (49, ((0.45 + sx * 0.05, -0.9, 0.1), (0, 0, 0)), "o"), (52, ((0.2 + sx * 0.05, -0.95, -0.3), (0, 0.15, 0))),
-        (55, ((-0.45 + sx * 0.05, -0.9, 0.1), (0, 0, 0)), "o"), (58, ((-0.2 + sx * 0.05, -0.95, 0.25), (0, 0, 0))),
-        (61, ((0.35 + sx * 0.05, -0.9, 0.1), (0, 0, 0)), "o"), (65, ((sx * 0.05, -1, 0.05), (0, 0, 0)), "io"),
-        (WINDT, ((-0.3 + sx * 0.05, -0.95, 0.1), (0, 0, 0)), "io"), (THROW, ((sx * 0.05, -1, 0.0), (0, 0, 0))))
+        (24, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "io"),
+        *KA.kick_keys(leg, LIFTED, REAR, beat=6, a0=1.0, a1=1.0, phase=0 if leg == "Right Leg" else 1),
+        (BITE, ((sx * 0.08, -0.9, 0.2), (0, 0.05, 0)), "io"), (48, ((sx * 0.12, -0.5, -0.85), (0, 0.5, -0.15)), "o"),
+        (52, ((0.45 + sx * 0.05, -0.9, 0.1), (0, 0, 0)), "io"), (58, ((-0.45 + sx * 0.05, -0.9, 0.1), (0, 0, 0)), "io"),
+        (64, ((0.35 + sx * 0.05, -0.9, 0.1), (0, 0, 0)), "io"), (WINDT, ((sx * 0.05, -1, 0.05), (0, 0, 0)), "io"),
+        (THROW, ((-0.3 + sx * 0.05, -0.95, 0.1), (0, 0, 0)), "io"))
     for leg, sx in (("Right Leg", 1), ("Left Leg", -1))
 }
+# the key poses on the R6 rig (Blender eases between them) and the hits (hard stops)
+R6_KEYS = (3, 5, 8, 14, GRAB, 24, LIFTED, 36, REAR, BITE, 48, 52, 58, 64, WINDT, THROW)
+R6_SHARP = (BITE,)
 
 
 def held_torso(an, ctx, f):
@@ -178,8 +184,8 @@ def victim(an, ctx, f):
     # torn loose and thrown down to its right (their left): tumbling, onto their back, a slide
     if "fall" not in ctx:
         ctx["fall"] = KA.fall_tracks(ctx["throw_from"].translation.copy(), ctx["throw_rot"], THROW, "thrown",
-                                     land=(-3.4, 1.7), yaw=-55, side=-1.0)
-    return KA.apply_fall(va, f, ctx["fall"], ctx["throw_limbs"], look_at=mouth)
+                                     land=(-3.4, 1.7), yaw=-55, side=-1.0, look_at=mouth, start_limbs=ctx["throw_limbs"])
+    return KA.apply_fall(va, f, ctx["fall"])
 
 
 def kill(an, ctx, f):
@@ -233,8 +239,11 @@ def main(litter_dir, preview):
     blend = os.path.join(litter_dir, "stack.blend")
     ctx = K.run_kill(blend, "Stack_Rig", LENGTH, KM, DISTANCE, kill, None, preview, "Stack_Kill_Victim", MARKERS)
     template = os.path.normpath(os.path.join(HERE, "..", "..", "shared", "r6", "Blender_R6.blend"))
+    fall = ctx["fall"]
     K.write_r6_blend(template, os.path.join(litter_dir, "export", "Stack_Kill_Victim.blend"), ctx["parts"],
-                     "Stack_Kill_Victim", MARKERS, (blend, "Stack_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE)
+                     "Stack_Kill_Victim", MARKERS, (blend, "Stack_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE,
+                     keys=set(R6_KEYS) | K.key_frames(fall), sharp=set(R6_SHARP) | set(fall["impact"]),
+                     refine=("Torso", "Head"))  # the head is in its jaws: it has to stay there
     print("kill written")
 
 

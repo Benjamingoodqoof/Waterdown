@@ -94,34 +94,41 @@ FLINCH = KA.flinch_tracks(3, 14, "Right Leg", big=1.0)
 DIST = T((GRAB, 0.6), (PULLED, 0.46, "o"), (36, 0.42), (SNAP, 0.42), (SNAP + 2, 0.38, "o3"))
 SNAPROT = T((GRAB, (0, 0, 0)), (TWIST, (0, 0, 0)), (48, (0, -35, -6), "io"), (49, (0, -38, -6)),
             (SNAP + 1, (14, 150, 24), "o"), (SNAP + 4, (8, 138, 20), "io"))
-H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (21, (-18, 0, -4), "o3"), (PULLED, (-6, 0, 2), "io"), (33, (-8, 4, -3)),
-          (38, (-4, -4, 3)), (TWIST, (-6, 0, 0)), (48, (-6, -18, 4), "io"), (SNAP, (-10, -30, 10), "o3"),
-          (53, (-4, 30, -6), "o"), (57, (2, 10, 0), "io"), (DROP, (0, 4, 0)))
+# The whole body is keyed on the same frames (the key poses), so on the R6 rig Blender eases between
+# whole poses:  18 grabbed by the head  23 yanked up  28 at his mask  34 / 40 clawing at his arms,
+#   kicking  44 the twist starts  46 / 48 kicking wildly  51 the snap (held)  54 the body jerks  58 dead
+H_ROT = T((GRAB, FLINCH["rot"](GRAB)), (23, (-16, 0, -4), "io"), (PULLED, (-6, 0, 2), "io"), (34, (-8, 4, -3), "io"),
+          (40, (-4, -4, 3), "io"), (TWIST, (-6, 0, 0), "io"), (48, (-6, -18, 4), "io"), (SNAP, (-6, -18, 4)),
+          (54, (-8, 24, -6), "o"), (58, (2, 10, 0), "io"), (DROP, (0, 4, 0), "io"))
 OUT_R, OUT_L = ((0.9, 0.3, -0.35), (0, 0.15, 0)), ((-0.9, 0.3, -0.35), (0, 0.15, 0))
+DEAD_R, DEAD_L = ((0.12, -1, 0.0), (0, 0, 0)), ((-0.1, -1, 0.05), (0, 0, 0))
 ARMS = {
     "Right Arm": KA.PoseKeys(
-        (GRAB, ((-0.15, 0.5, -0.85), (-0.2, 0.3, -0.3))), (GRAB + 3, ("fore", (-0.2, 0.3, -0.4)), "o"),
-        (26, ("fore", (-0.15, 0.1, -0.35))), (30, ("fore", (-0.2, 0.35, -0.4))), (34, ("fore", (-0.15, 0.05, -0.35))),
-        (38, ("fore", (-0.2, 0.3, -0.4))), (TWIST, ("wrist", (-0.25, 0.3, -0.45)), "io"), (49, ("wrist", (-0.3, 0.35, -0.4))),
-        (SNAP, OUT_R, "o3"), (53, ((0.6, -0.5, -0.5), (0, 0, 0)), "o"), (57, ((0.12, -1, 0.0), (0, 0, 0)), "i"),
-        (DROP, ((0.1, -1, 0.05), (0, 0, 0)))),
+        (GRAB, ((-0.15, 0.5, -0.85), (-0.2, 0.3, -0.3))), (23, ("fore", (-0.2, 0.3, -0.4)), "io"),
+        (PULLED, ("fore", (-0.15, 0.1, -0.35)), "io"), (34, ("fore", (-0.2, 0.35, -0.4)), "io"),
+        (40, ("fore", (-0.15, 0.05, -0.35)), "io"), (TWIST, ("wrist", (-0.25, 0.3, -0.45)), "io"),
+        (48, ("wrist", (-0.3, 0.35, -0.4)), "io"), (SNAP, ("wrist", (-0.3, 0.35, -0.4))), (54, OUT_R, "o"),
+        (58, DEAD_R, "io"), (DROP, DEAD_R)),
     "Left Arm": KA.PoseKeys(
-        (GRAB, ((0.2, 0.6, -0.8), (0.2, 0.35, -0.3))), (GRAB + 2, ("fore", (0.2, 0.3, -0.4)), "o"),
-        (24, ("fore", (0.15, 0.35, -0.4))), (28, ("fore", (0.2, 0.1, -0.35))), (32, ("fore", (0.15, 0.35, -0.4))),
-        (37, ("fore", (0.2, 0.05, -0.35))), (TWIST, ("wrist", (0.25, 0.35, -0.45)), "io"), (49, ("wrist", (0.3, 0.3, -0.4))),
-        (SNAP, OUT_L, "o3"), (54, ((-0.5, -0.6, -0.4), (0, 0, 0)), "o"), (58, ((-0.1, -1, 0.05), (0, 0, 0)), "i"),
-        (DROP, ((-0.1, -1, 0.05), (0, 0, 0)))),
+        (GRAB, ((0.2, 0.6, -0.8), (0.2, 0.35, -0.3))), (23, ("fore", (0.2, 0.3, -0.4)), "io"),
+        (PULLED, ("fore", (0.15, 0.35, -0.4)), "io"), (34, ("fore", (0.2, 0.1, -0.35)), "io"),
+        (40, ("fore", (0.15, 0.35, -0.4)), "io"), (TWIST, ("wrist", (0.25, 0.35, -0.45)), "io"),
+        (48, ("wrist", (0.3, 0.3, -0.4)), "io"), (SNAP, ("wrist", (0.3, 0.3, -0.4))), (54, OUT_L, "o"),
+        (58, DEAD_L, "io"), (DROP, DEAD_L)),
 }
 LEGS = {
     leg: KA.PoseKeys(
         (GRAB, (((0.05, -0.95, 0.35) if leg == "Right Leg" else (-0.05, -0.95, -0.3)), (0, 0, 0))),
-        (GRAB + 3, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "o"),
-        *KA.kick_keys(leg, 22, 42, beat=5, a0=1.0, a1=0.7, phase=0 if leg == "Right Leg" else 1),
+        (23, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "io"),
+        *KA.kick_keys(leg, PULLED, 40, beat=6, a0=1.0, a1=0.7, phase=0 if leg == "Right Leg" else 1),
         *KA.kick_keys(leg, TWIST, 48, beat=2, a0=0.9, a1=1.0, phase=1 if leg == "Right Leg" else 0),
-        (SNAP, ((sx * 0.1, -0.55, -0.8), (0, 0.45, -0.12)), "o3"), (53, ((sx * 0.06, -1, 0.25), (0, 0, 0)), "o"),
-        (57, ((sx * 0.05, -1, -0.05), (0, 0, 0)), "io"), (DROP, ((sx * 0.05, -1, 0.0), (0, 0, 0))))
+        (SNAP, ((sx * 0.08, -0.9, 0.2), (0, 0.05, 0)), "io"), (54, ((sx * 0.1, -0.55, -0.8), (0, 0.45, -0.12)), "o"),
+        (58, ((sx * 0.05, -1, 0.1), (0, 0, 0)), "io"), (DROP, ((sx * 0.05, -1, 0.0), (0, 0, 0)), "io"))
     for leg, sx in (("Right Leg", 1), ("Left Leg", -1))
 }
+# the key poses on the R6 rig (Blender eases between them) and the hits (hard stops)
+R6_KEYS = (3, 5, 8, 14, GRAB, 23, PULLED, 34, 40, TWIST, 46, 48, SNAP, 54, 58, DROP)
+R6_SHARP = (SNAP,)
 
 
 def victim(an, ctx, f):
@@ -154,8 +161,8 @@ def victim(an, ctx, f):
     # dropped: the legs fold, the body tips back and slams down, the head still turned the wrong way
     if "fall" not in ctx:
         ctx["fall"] = KA.fall_tracks(ctx["drop_torso"].translation.copy(), ctx["drop_rot"], DROP, "drop",
-                                     land=(-0.6, 1.5), yaw=20, side=1.0)
-    v = KA.apply_fall(va, f, ctx["fall"], ctx["drop_limbs"])
+                                     land=(-0.6, 2.8), yaw=20, side=1.0, start_limbs=ctx["drop_limbs"])
+    v = KA.apply_fall(va, f, ctx["fall"])
     v.T["Head"] = ctx["neck_T"]
     return KA.floor_clamp(v)
 
@@ -212,8 +219,11 @@ def main(blend, export_dir, preview):
     ctx = K.run_kill(blend, "PosterMonster_Rig", LENGTH, KM, DISTANCE, kill, None, preview, "PosterMonster_Kill_Victim",
                      MARKERS)
     template = os.path.normpath(os.path.join(HERE, "..", "..", "shared", "r6", "Blender_R6.blend"))
+    fall = ctx["fall"]
     K.write_r6_blend(template, os.path.join(export_dir, "PosterMonster_Kill_Victim.blend"), ctx["parts"],
-                     "PosterMonster_Kill_Victim", MARKERS, (blend, "PosterMonster_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE)
+                     "PosterMonster_Kill_Victim", MARKERS, (blend, "PosterMonster_Rig", "Kill", KM, DISTANCE, ctx["root"]), NOTE,
+                     keys=set(R6_KEYS) | K.key_frames(fall), sharp=set(R6_SHARP) | set(fall["impact"]),
+                     refine=("Torso", "Head"))  # the head is in his hands: it has to stay there
     print("kill written")
 
 

@@ -1,7 +1,7 @@
 # Kill animations
 
 Each monster has a kill: a pair of animations, one for the monster and one for the R6 player
-it kills, made to play together. They're short (3.3 to 4 s) and keyed pose to pose like a
+it kills, made to play together. They're short (3.3 to 4.3 s) and keyed pose to pose like a
 hand-animated shot: an anticipation before every big move, fast strikes that ease into their
 holds, arcs on every reach and throw, follow-through (the player's head and limbs drag behind
 when they're jerked around, and the monster's head and spine lag its hips), and weighty falls
@@ -31,6 +31,12 @@ Each `*_Kill_Victim.blend` is a copy of your `Blender_R6.blend` with the kill ke
 
 - **The animation** is the action `<Monster>_Kill_Victim` on `InternalArmature` (the armature
   with a bone per R6 part), 30 fps, frames 0 to the end marker. Export it with your R6 exporter as usual.
+- **It's keyed as key poses, not a key on every frame.** The whole body is keyed on the same
+  frames (the key poses, plus a few breakdowns where the monster's hand moves fast and the
+  body has to stay in it), and Blender's Bezier eases between them. The hits (the stab, the
+  snap, the bite, the moment of death, and the body hitting the floor) have vector handles, so
+  they stop hard instead of easing. Each fall ends in the pose it lands in, flat on the floor,
+  and holds it.
 - **The control rig** (`__PrimaryArmature`) is hidden, and InternalArmature's constraints to it
   are muted, so the keys drive the body directly. To pose it with the controls again, unmute
   them (the keys then stop showing).
@@ -67,21 +73,21 @@ way. His hands stay up a beat, then he straightens, watching it.
 | `Drop` | 60 | He lets go |
 | `End` | 100 | |
 
-**CRT Man: "Collar grab"** (120 frames). His monitor jerks round to the player. He draws
+**CRT Man: "Collar grab"** (130 frames). His monitor jerks round to the player. He draws
 himself up and back, the monitor tipped back to look down at them, his right hand drawn back; a
 beat. Then one long lunge and he seizes them by the collar, gathers them in and hoists them up
 to his screen at arm's length. The monitor cocks slowly from side to side, studying them, with
 a sharp twitch now and then, while they kick, pull at his wrist and shove at the screen. He
 pulls them in close to it; they convulse and go limp. He holds the body up a beat, tilting the
 monitor at it, lifts it a little and opens his hand: it lands on its feet, the knees buckle and
-it slams onto its back. He steps back and bends to watch it.
+it slams onto its back. He steps back and stands over it, his monitor looking down at it.
 
 | Marker | Frame | Use it for |
 |---|---|---|
 | `Grab` | 17 | Show the player's avatar on his `Screen` and start the static, getting louder. **QTE starts** |
 | `Death` | 72 | The static peaks: they die. **QTE ends** |
 | `Drop` | 90 | He lets go |
-| `End` | 120 | |
+| `End` | 130 | |
 
 If he was disguised as a teammate, glitch him back to the suit at `Grab`.
 
@@ -133,6 +139,9 @@ The disguise is stop motion, like its other disguise animations: distinct poses 
 6 frames that snap from one to the next with no in-betweens (the walk is four held poses a
 step). Parts are moved as well as rotated, as in your own animations: an arm swinging forward
 crosses in front of the body, a lifted leg rises to fake a bent knee. The player moves smoothly.
+In the .blend the killer's action has a key only where its pose changes, with constant
+interpolation (held until the next key), and the player's has key poses that Blender eases
+between.
 
 | Marker | Frame | Use it for |
 |---|---|---|
@@ -265,3 +274,9 @@ python3 shared/kill_sheet.py PREVIEW.blend sheet.png   # a third-person row and 
 Each kill script keys the monster's `Kill` action into its .blend, writes the player's half
 onto a copy of `shared/r6/Blender_R6.blend` (your R6 rig), and saves a preview .blend with the
 player as blocks and a camera on their head.
+
+The Receiver's `Kill` action has been edited by hand in Blender, so `receiver_kill.py` keeps it
+exactly as it is and only works out the player's half against it (their neck in his right hand,
+their chest on his claw while it's in them). `--regenerate-monster` replaces it with the
+generated version. To edit his animation again, change the `Kill` action in
+`receiver/receiver.blend` and re-run the script to fit the player to it.

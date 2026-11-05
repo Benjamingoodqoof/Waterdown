@@ -172,40 +172,38 @@ V_HIPS = T((0, (0, -1, 0)), (60, (0, -1, 0)), (76, (0, -1, 0.35), "io"), (98, (0
 V_ROT = T((0, (0, 0, 0)), (40, (0, 0, 0)), (62, (4, 0, -3), "io"), (96, (6, 0, 2)), (103, (14, 0, 0), "o3"))
 V_HEAD = T((0, (0, 0, 0)), (16, (0, 0, 0)), (28, (0, 0, 10), "io"), (50, (0, 0, 4)), (86, (6, 0, 0)), (103, (-6, 0, 0), "o"))
 V_ARMS_UP = T((0, 0.0), (78, 0.0), (98, 0.6, "io"), (103, 1.0, "o3"))
-H_ROT = T((GRAB, (14, 0, 0)), (108, (-10, 0, 4), "o3"), (114, (4, 0, -2)), (124, (8, 0, 0)), (DEATH, (6, 0, 0)),
-          (160, (-6, 0, 0), "o"), (164, (8, 0, 3), "o"), (DROP, (5, 0, 0)))
-KICK = T((GRAB, 0.0), (110, 1.2, "o"), (134, 1.0), (148, 0.6), (DEATH, 0.35), (160, 1.3, "o3"), (166, 0.0, "o"))
-CLUTCH = T((GRAB, 0.0), (110, 1.0, "o"), (152, 0.9), (DEATH + 2, 0.0, "o"))
-HEAD_H = T((GRAB, (-6, 0, 0)), (108, (-20, 0, 6), "o3"), (116, (16, 0, 0)), (DEATH, (20, 0, 0)), (160, (34, 0, 0), "o3"),
-           (166, (-14, 0, 34), "o"), (DROP, (-16, 0, 38)))
-
-
-def fall_tracks(p0, r0):
-    """The fall, posed: lands on its feet, the knees buckle, tips back onto the floor with the arms
-    flung out, bounces (the legs lift a little and slap down) and settles with the legs flat."""
-    x, z = p0.x, p0.z
-    torso_pos = T((DROP, p0), (177, (x, 0.0, z), "i"), (181, (x + 0.1, -1.0, z + 0.25), "io"),
-                  (LAND, (x + 0.2, -2.5, z + 1.45), "i"), (189, (x + 0.2, -2.32, z + 1.48), "o"),
-                  (194, (x + 0.2, -2.5, z + 1.5), "io"))
-    torso_rot = T((DROP, r0), (177, (-10, 4, -3), "i"), (181, (26, 8, -6), "io"), (LAND, (90, 14, -10), "i"),
-                  (189, (84, 14, -10), "o"), (194, (90, 16, -12), "io"))
-    limbs = {
-        "Right Arm": T((DROP, (0.1, -1, 0.05)), (177, (0.2, -1, -0.1)), (181, (0.75, 0.35, 0.2), "o"), (LAND, (1.0, -0.15, 0.1), "i"),
-                       (189, (0.95, 0.1, 0.05), "o"), (194, (0.95, -0.25, 0.15), "io")),
-        "Left Arm": T((DROP, (-0.1, -1, 0.05)), (177, (-0.15, -1, -0.15)), (181, (-0.6, 0.55, 0.1), "o"), (LAND, (-0.9, 0.2, 0.1), "i"),
-                      (189, (-0.85, 0.35, 0.05), "o"), (194, (-0.35, -0.95, -0.05), "io")),  # comes to rest along the side
-        "Right Leg": T((DROP, (0.05, -1, 0.0)), (177, (0.1, -1, -0.05)), (181, (0.25, -0.6, -0.75), "io"), (LAND, (0.12, -1, -0.05), "i"),
-                       (189, (0.12, -0.95, -0.25), "o"), (194, (0.15, -1, 0.0), "io")),
-        "Left Leg": T((DROP, (-0.05, -1, 0.0)), (177, (-0.1, -1, -0.05)), (181, (-0.25, -0.65, -0.7), "io"), (LAND, (-0.12, -0.95, -0.3), "i"),
-                      (189, (-0.12, -1, -0.1), "o"), (194, (-0.35, -0.95, -0.02), "io")),  # flat, splayed out
-    }
-    moves = {  # the legs moved up toward the hips when they're bent (fake knees)
-        "Right Leg": T((DROP, (0, 0, 0)), (177, (0, 0, 0)), (181, (0, 0.45, -0.1), "io"), (LAND, (0, 0, 0), "i")),
-        "Left Leg": T((DROP, (0, 0, 0)), (177, (0, 0, 0)), (181, (0, 0.45, -0.1), "io"), (LAND, (0, 0, 0), "i")),
-    }
-    head = T((DROP, (-16, 0, 38)), (177, (-35, 0, 20), "i"), (181, (-10, 0, 10), "o"), (LAND, (20, 0, 0), "i"),
-             (189, (-5, 0, 10), "o"), (194, (5, 0, 40), "io"))
-    return torso_pos, torso_rot, limbs, moves, head
+# Held by the throat, keyed on the same frames for the whole body (the key poses), so on the R6 rig
+# Blender eases between whole poses:  104 grabbed  109 hoisted, both hands on its forearm
+#   116-152 kicking (weaker each time) and pulling at its arm  158 dies (held)  161 the death spasm
+#   166 limp  172 dropped
+H_ROT = T((GRAB, (14, 0, 0)), (109, (-10, 0, 4), "io"), (116, (4, 0, -2), "io"), (122, (-2, 2, 2), "io"),
+          (128, (6, -2, -2), "io"), (134, (0, 2, 2), "io"), (140, (6, 0, 0), "io"), (146, (2, 0, 0), "io"),
+          (152, (6, 0, 0), "io"), (DEATH, (6, 0, 0)), (161, (-6, 0, 0), "o"), (166, (8, 0, 3), "io"), (DROP, (5, 0, 0), "io"))
+HEAD_H = T((GRAB, (-6, 0, 0)), (109, (-20, 0, 6), "io"), (116, (16, 0, 0), "io"), (128, (14, 0, -6), "io"),
+           (140, (18, 0, 4), "io"), (152, (20, 0, 0), "io"), (DEATH, (20, 0, 0)), (161, (34, 0, 0), "o"),
+           (166, (-14, 0, 34), "io"), (DROP, (-16, 0, 38), "io"))
+LOOK = ((GRAB, "killer"), (DEATH, "killer"), (164, "ahead", "io"))
+OUT_R, OUT_L = ((0.95, 0.15, -0.25), (0, 0.15, 0)), ((-0.95, 0.15, -0.25), (0, 0.15, 0))
+HANG_R, HANG_L = ((0.1, -1, 0.05), (0, 0, 0)), ((-0.1, -1, 0.05), (0, 0, 0))
+ARMS = {
+    arm: KA.PoseKeys(
+        (GRAB, ((sx * 0.35, 0.15, -0.9), (0, 0, 0))), (109, ("arm", (-sx * 0.2, 0.25, -0.45)), "io"),
+        (116, ("arm", (-sx * 0.15, 0.05, -0.4)), "io"), (122, ("arm", (-sx * 0.2, 0.3, -0.45)), "io"),
+        (128, ("arm", (-sx * 0.15, 0.05, -0.4)), "io"), (134, ("arm", (-sx * 0.2, 0.3, -0.45)), "io"),
+        (140, ("arm", (-sx * 0.15, 0.1, -0.4)), "io"), (146, ("arm", (-sx * 0.2, 0.2, -0.4)), "io"),
+        (152, ("arm", (-sx * 0.15, 0.05, -0.35)), "io"), (DEATH, ("arm", (-sx * 0.15, 0.05, -0.35))),
+        (161, OUT_R if sx > 0 else OUT_L, "o"), (166, HANG_R if sx > 0 else HANG_L, "io"), (DROP, HANG_R if sx > 0 else HANG_L))
+    for arm, sx in (("Right Arm", 1), ("Left Arm", -1))
+}
+LEGS = {
+    leg: KA.PoseKeys(
+        (GRAB, ((sx * 0.06, -1, 0.1), (0, 0, 0))), (109, ((sx * 0.06, -1, 0.0), (0, 0, 0)), "io"),
+        *KA.kick_keys(leg, 116, 152, beat=6, a0=1.0, a1=0.35, phase=0 if leg == "Right Leg" else 1),
+        (DEATH, ((sx * 0.06, -1, 0.1), (0, 0, 0)), "io"), (161, ((sx * 0.05, -1, 0.2), (0, 0, 0)), "o"),
+        (166, ((sx * 0.05, -1, 0.03), (0, 0, 0)), "io"), (DROP, ((sx * 0.05, -1, 0.03), (0, 0, 0))))
+    for leg, sx in (("Right Leg", 1), ("Left Leg", -1))
+}
+HELD_KEYS = (GRAB, 109, 116, 122, 128, 134, 140, 146, 152, DEATH, 161, 166, DROP)
 
 
 def victim_pose(va, f, kill_k, ctx):
@@ -227,37 +225,20 @@ def victim_pose(va, f, kill_k, ctx):
         g = ctx.get("grip")
         g = hand if g is None else g + (hand - g) * 0.35
         ctx["grip"] = g
-        k = KICK(f)
-        rot = H_ROT(f) + V((0, 0, 4 * math.sin(f / 5.0) * k))
-        R = KA.euler(rot)
+        R = KA.euler(H_ROT(f))
         torso = Matrix.Translation(g - R.to_3x3() @ (NECK + V((0, 0, -0.25)))) @ R
-        dead = f >= 162
-        v = va.build(f, torso, head=HEAD_H(f), look_at=None if dead else khead, lag={"head": 2})
-        for leg, sx, ph in (("Right Leg", 1, 0.0), ("Left Leg", -1, 1.4)):
-            d = V((sx * 0.08, -1, 0.6 * k * math.sin(f / 2.6 + ph)))
-            if dead:
-                v.point(leg, V((sx * 0.05, -1, 0.03)).normalized())
-            else:
-                v.point(leg, (va.rot.get(f - 3, torso.to_3x3()) @ d).normalized())
-        c = CLUTCH(f)
+        points = {"killer": khead, "ahead": torso @ V((0, 1.0, -6))}
+        v = va.build(f, torso, head=HEAD_H(f), look_at=KA.look_blend(f, LOOK, points), lag={"head": 2})
         ka_arm = K2V @ kill_k.parts()["Right Arm"]
-        for arm, sx in (("Right Arm", 1), ("Left Arm", -1)):
-            on_arm = ka_arm @ V((0, -0.2 - 0.35 * (sx > 0), 0))  # both hands on its forearm
-            if c > 0.02:
-                K.reach_r6(v, arm, (torso @ V((sx * 1.5, -1.0, -0.6))).lerp(on_arm, c))
-            else:
-                v.point(arm, V((sx * 0.1, -1, 0.05)).normalized())
-        ctx["drop_torso"], ctx["drop_rot"] = torso, rot
+        targets = {"Right Arm": {"arm": ka_arm @ V((0, -0.55, 0))}, "Left Arm": {"arm": ka_arm @ V((0, -0.2, 0))}}
+        KA.pose_limbs(va, v, f, ARMS, LEGS, targets)  # both hands on its forearm
+        ctx["drop_torso"], ctx["drop_rot"], ctx["drop_limbs"] = torso, H_ROT(f), KA.limb_dirs(v)
         return v
+    # dropped: lands on its feet, the knees give, tips back and slams down, comes to rest
     if "fall" not in ctx:
-        ctx["fall"] = fall_tracks(ctx["drop_torso"].translation.copy(), ctx["drop_rot"])
-    tpos, trot, limbs, moves, head = ctx["fall"]
-    torso = Matrix.Translation(tpos(f)) @ KA.euler(trot(f))
-    v = va.build(f, torso, head=head(f), limbs={limb: tr(f) for limb, tr in limbs.items()},
-                 lag={"arms": 2, "legs": 1, "head": 2})
-    for leg, tr in moves.items():
-        K.dislocate(v, leg, tr(f))
-    return v
+        ctx["fall"] = KA.fall_tracks(ctx["drop_torso"].translation.copy(), ctx["drop_rot"], DROP, "drop",
+                                     land=(0.2, 2.9), yaw=14, side=1.0, look_at=khead, start_limbs=ctx["drop_limbs"])
+    return KA.apply_fall(va, f, ctx["fall"])
 
 
 # ---------------------------------------------------------------- building it
@@ -279,7 +260,7 @@ def frames():
         vhead_k = V2K @ v.head_world().translation
         vic.append(v.parts())
         kil.append(k.parts())
-    return vic, kil
+    return vic, kil, ctx["fall"]
 
 
 def preview(vic, kil, path, k=0.28):
@@ -319,7 +300,7 @@ suit), End.
 """
 
 
-def write_blend(src, out, vic, kil):
+def write_blend(src, out, vic, kil, fall):
     bpy.ops.wm.open_mainfile(filepath=os.path.abspath(src))
     sc = bpy.context.scene
     sc.render.fps = 30
@@ -331,8 +312,12 @@ def write_blend(src, out, vic, kil):
     player_y = -2.86
     killer = bpy.data.objects["InternalArmature"]
     player = bpy.data.objects["InternalArmature.001"]
-    K.key_r6_rig(killer, kil, "StandIn_DisguisedKill_Killer")
-    K.key_r6_rig(player, vic, "StandIn_DisguisedKill_Victim")
+    # the killer is stop motion: a key where its pose changes, held until the next (no in-betweens);
+    # the player is smooth: its key poses, Blender easing between them
+    K.key_r6_rig(killer, kil, "StandIn_DisguisedKill_Killer", constant=True)
+    walk_in = K.key_frames(V_HIPS, V_ROT, V_HEAD, V_ARMS_UP) | {60, 66, 74, 80}
+    K.key_r6_rig(player, vic, "StandIn_DisguisedKill_Victim", forced=walk_in | set(HELD_KEYS) | K.key_frames(fall),
+                 sharp={DEATH} | set(fall["impact"]))
     player.location = (0, player_y, 0)
     player.rotation_euler = (0, 0, 0)
     killer.location = (0, player_y + DISTANCE, 0)  # the player faces +Y, the killer faces it
@@ -349,10 +334,10 @@ def write_blend(src, out, vic, kil):
 
 
 def main(export_dir, preview_path):
-    vic, kil = frames()
+    vic, kil, fall = frames()
     preview(vic, kil, preview_path)
     src = os.path.normpath(os.path.join(HERE, "..", "..", "shared", "r6", "Blender_R6Kill.blend"))
-    write_blend(src, os.path.join(export_dir, "StandIn_DisguisedKill.blend"), vic, kil)
+    write_blend(src, os.path.join(export_dir, "StandIn_DisguisedKill.blend"), vic, kil, fall)
     print("disguised kill written")
 
 
