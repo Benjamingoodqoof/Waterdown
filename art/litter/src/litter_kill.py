@@ -31,6 +31,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(1, os.path.normpath(os.path.join(HERE, "..", "..", "shared")))
 import anim_core as A  # noqa: E402
 import kill_anim as KA  # noqa: E402
+import grip as G  # noqa: E402
 import kill_core as K  # noqa: E402
 import litter_animate as LA  # noqa: E402
 from kill_anim import Track as T  # noqa: E402
@@ -45,6 +46,7 @@ SIDES = (("Left", 1.0), ("Right", -1.0))
 MOUTH = Vector((0.0, -0.05, -0.23))  # the head creature's mouth, in its slot bone's frame
 HOLD = Vector((0.0, -0.78, 1.74))  # where it holds their torso, at rest (in front of its chest)
 GRIP = Vector((1.25, 0.55, 0.0))  # its hands on their upper arms, in their torso's frame (x mirrored)
+PALM = 0.03  # half the thickness of its hand (m)
 SHAKES = (49, 55, 61)  # the thrashes: left, right, left
 
 # ---------------------------------------------------------------- its key poses
@@ -194,35 +196,38 @@ def kill(an, ctx, f):
     monster_body(an, f)
     v = victim(an, ctx, f)
     Tm = an.rest_delta("UpperTorso")
+    body = G.Body(pl, v.parts(), KM)
+    hold = K.smoothstep(GRAB - 3, GRAB, f) * (1 - K.smoothstep(THROW - 1, THROW + 1, f))
     if GRAB - 6 <= f <= THROW:
-        tb = pl.to_blender(v.torso)
         for side, sx in SIDES:
-            # its left hand on their right arm (both at +x)
-            grip = tb @ Vector((GRIP.x * sx, GRIP.y, GRIP.z))
+            # its left hand on their right upper arm (both at +x): the palm flat on the outside of
+            # the arm, the fingers round the back of it, the thumb in front
+            pt, n, along = body.surface("Right Arm" if sx > 0 else "Left Arm", (sx * 0.5, 0.45, -0.05), (sx, 0, 0), (0, 0, 1))
+            pole = Tm.to_3x3() @ Vector((sx * 0.9, 0.3, -0.3))
+            free = pt + n * 0.08
             if f < GRAB:
                 g = KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH)
                 grip_at = pl.point_to_blender(g @ Vector((GRIP.x * sx, GRIP.y, GRIP.z)))
                 wide = Tm @ an.pb[f"{side}LowerArm"].bone.tail_local
                 t = KA.EASE["i"]((f - (GRAB - 6)) / 6)
-                target = KA.catmull(wide, wide, grip_at + Vector((sx * 0.25, 0, 0.2)), grip_at, t).lerp(grip_at, t)
-            else:
-                target = grip
-            K.reach(an, side, target, Tm.to_3x3() @ Vector((sx * 0.9, 0.3, -0.3)),
-                    (Vector((0, 0, -1)) - tb.to_3x3().col[0] * sx * 0.3).normalized() if f >= GRAB - 1 else None,
-                    -tb.to_3x3().col[0] * sx)
-            ctx["rel_" + side] = target
+                free = KA.catmull(wide, wide, grip_at + Vector((sx * 0.25, 0, 0.2)), grip_at, t).lerp(grip_at, t)
+            G.grip_hand(an, side, pt, n, along, pole, PALM, weight=hold, free_wrist=free)
+            ctx["rel_" + side] = an.pb[f"{side}LowerArm"].tail.copy()
     elif f > THROW:
         for side, sx in SIDES:  # its arms swing through after the throw, open, and settle
             r0 = Tm @ an.pb[f"{side}LowerArm"].bone.tail_local
             rel = ctx["rel_" + side]
             follow = KA.Track((THROW, rel), (THROW + 4, rel.lerp(r0, 0.4) + Vector((-0.35, -0.2, -0.1)), "o3"),
-                                       (90, r0 + Vector((-0.05, -0.1, 0.0)), "io"), (LENGTH, r0))
+                              (90, r0 + Vector((-0.05, -0.1, 0.0)), "io"), (LENGTH, r0))
             K.reach(an, side, follow(f), Tm.to_3x3() @ Vector((sx * 0.9, 0.3, -0.3)))
     pose = {}
     for side, _ in SIDES:
         pose.update(K.finger_curl(an, side, FINGERS(f), spread=10 * K.window(f, 4, RISE, GRAB - 1, GRAB)))
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
+    if hold > 0:  # its fingers close round their arms until they touch
+        for side, _ in SIDES:
+            G.wrap_fingers(an, side, body, spread=4.0, weight=hold)
     return v
 
 

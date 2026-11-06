@@ -275,8 +275,14 @@ Each kill script keys the monster's `Kill` action into its .blend, writes the pl
 onto a copy of `shared/r6/Blender_R6.blend` (your R6 rig), and saves a preview .blend with the
 player as blocks and a camera on their head.
 
-The Receiver's `Kill` action has been edited by hand in Blender, so `receiver_kill.py` keeps it
-exactly as it is and only works out the player's half against it (their neck in his right hand,
-their chest on his claw while it's in them). `--regenerate-monster` replaces it with the
-generated version. To edit his animation again, change the `Kill` action in
-`receiver/receiver.blend` and re-run the script to fit the player to it.
+The Receiver's animation has been edited by hand in Blender. That version is kept untouched as
+the action `Kill_source` in `receiver/receiver.blend`; `receiver_kill.py` builds `Kill` from it
+each run, changing only his right hand and its fingers while he holds the player (turned onto
+their throat and closed round it), and works out the player's half against it (hanging from his
+palm, their chest on his claw while it's in them). `--regenerate-monster` replaces it with the
+generated version. To edit his animation again, edit `Kill_source` and re-run the script.
+
+**Grips** (`shared/grip.py`): wherever a monster holds the player, its palm sits flat on the R6
+part it grabs (the head, the collar, the throat, the upper arms) and each finger closes joint by
+joint until it touches that part, so the fingers lie on the surface and wrap round it instead of
+floating or going through. Finger curls bend toward the palm on every rig.

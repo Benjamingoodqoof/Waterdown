@@ -24,13 +24,14 @@ import os
 import sys
 
 import bpy  # noqa: F401
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(1, os.path.normpath(os.path.join(HERE, "..", "..", "shared")))
 import anim_core as A  # noqa: E402
 import kill_anim as KA  # noqa: E402
+import grip as G  # noqa: E402
 import kill_core as K  # noqa: E402
 from kill_anim import Track as T  # noqa: E402
 
@@ -42,6 +43,11 @@ COIL, GRAB, LIFTED, PULL, DEATH, LIMP, DROP = 10, 17, 30, 66, 72, 78, 90
 MARKERS = {GRAB: "Grab", DEATH: "Death", DROP: "Drop", LENGTH: "End"}
 SCREEN = Vector((0.0, -0.3, 2.49))
 COLLAR = Vector((0.0, 0.85, -0.55))  # the front of their collar, in their torso's frame
+# his grip on their collar: the palm flat on the top of their chest, the fingers up over the
+# collar (the top edge of the torso) and hooked over it, beside the neck on their left, where his
+# right hand lands (their torso's frame, studs)
+GRIP_AT, GRIP_N, GRIP_ALONG = Vector((-0.62, 0.74, -0.5)), Vector((0, 0, -1)), Vector((0, 1, 0))
+PALM = 0.022  # half the thickness of his hand (m)
 SIDES = (("Left", 1.0), ("Right", -1.0))
 
 # ---------------------------------------------------------------- his key poses
@@ -148,8 +154,12 @@ def victim(an, ctx, f):
     if f <= GRAB:
         return KA.apply_flinch(va, f, FLINCH, look_at=screen)
     if f < DROP:
-        grip = pl.point_to_victim(an.pb["RightHand"].matrix @ ctx["grip_local"])
-        torso = va.torso_from_grip(grip, COLLAR, H_ROT(f))
+        # hanging from his grip: the spot on their chest under his palm
+        R = KA.euler(H_ROT(f))
+        torso = Matrix.Translation(ctx["palm_v"] - R.to_3x3() @ GRIP_AT) @ R
+        if f < GRAB + 4:  # yanked into his hand from where they stood
+            t0 = KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH).translation
+            torso.translation = t0.lerp(torso.translation, K.smoothstep(GRAB, GRAB + 4, f))
         points = {"screen": screen, "ahead": torso @ Vector((0, 1.0, -6))}
         v = va.build(f, torso, head=HEAD_H(f), look_at=KA.look_blend(f, LOOK, points), lag={"head": 2})
         wrist = pl.point_to_victim(an.pb["RightLowerArm"].tail)
@@ -191,17 +201,30 @@ def kill(an, ctx, f):
                               (104, r0 + Vector((0, -0.06, 0.06)), "io"), (LENGTH, r0 + Vector((0, -0.04, 0.03))), arc=True)
     target = ctx["hand_track"](f)
     shake = Vector((0, 0, 0.004 * math.sin(f * 1.9))) * K.window(f, LIFTED, LIFTED + 6, DEATH, LIMP)
-    hold = GRAB - 3 <= f <= DROP
-    K.reach(an, "Right", target + shake, Tm.to_3x3() @ Vector((-0.8, 0.5, -0.6)),
-            Vector((0.1, -0.85, -0.5)).normalized() if hold else None, Vector((0, -0.2, -1)))
-    if f == GRAB:
-        collar = pl.point_to_blender(KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH) @ COLLAR)
-        ctx["grip_local"] = an.pb["RightHand"].matrix.inverted() @ collar
+    hold = K.smoothstep(GRAB - 3, GRAB, f) * (1 - K.smoothstep(DROP, DROP + 3, f))
+    pole = Tm.to_3x3() @ Vector((-0.8, 0.5, -0.6))
+    if hold > 0:
+        # the hand turned to their chest: palm on it, fingers pointing up over the collar
+        r3 = pl.to_blender(KA.euler(H_ROT(max(f, GRAB)))).to_3x3().normalized()
+        n, along = r3 @ GRIP_N, r3 @ GRIP_ALONG
+        K.reach(an, "Right", target + shake, pole, Vector((0, -0.2, -1)).lerp(along, hold).normalized(),
+                Vector((0, -1, 0)).lerp(-n, hold).normalized())
+        ctx["palm_v"] = pl.point_to_victim(G.palm(an, "Right", PALM)[0])
+    else:
+        K.reach(an, "Right", target + shake, pole)
     pose = K.finger_curl(an, "Right", FINGERS_R(f), spread=8 * K.window(f, 4, COIL, GRAB - 1, GRAB))
     pose.update(K.finger_curl(an, "Left", FINGERS_L(f), spread=10 * K.window(f, DEATH - 1, DEATH, DEATH + 4, LIMP + 2)))
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
     v = victim(an, ctx, f)
+    if hold > 0:  # his fingers close round the collar until they touch
+        body = G.Body(pl, v.parts(), KM)
+        curls = G.wrap_fingers(an, "Right", body, spread=3.0, weight=hold, open_curl=-15, margin=0.004)
+        if os.environ.get("KILL_DEBUG") and f in (30, 60):
+            pp, d, faces = G.palm(an, "Right", PALM)
+            print("GRIP", f, "palm to chest", round(body.distance(pp, ["Torso"]) / KM, 2), "studs; palm local",
+                  tuple(round(x, 2) for x in body.inv["Torso"] @ pp), "curls", {k: [round(x) for x in c] for k, c in curls.items()},
+                  "tips", {fn: round(body.distance(G._chain(an, "Right", fn)[-1].tail) / KM, 2) for fn in G.FINGERS})
     ctx["vhead"] = pl.to_blender(v.head_world()).translation
     if os.environ.get("KILL_DEBUG"):
         D = an.rest_delta("Head")

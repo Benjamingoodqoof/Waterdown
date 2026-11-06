@@ -32,6 +32,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(1, os.path.normpath(os.path.join(HERE, "..", "..", "shared")))
 import anim_core as A  # noqa: E402
 import kill_anim as KA  # noqa: E402
+import grip as G  # noqa: E402
 import kill_core as K  # noqa: E402
 from kill_anim import Track as T  # noqa: E402
 
@@ -44,6 +45,7 @@ MARKERS = {GRAB: "Grab", SNAP: "Snap", DROP: "Drop", LENGTH: "End"}
 MASK = Vector((0.0, -0.2, 2.5))
 MASK_N = Vector((-0.009, -0.976, 0.22))
 SIDES = (("Left", 1.0), ("Right", -1.0))
+PALM = 0.03  # half the thickness of his hand (m): how far the palm's surface is off the bone
 PEELS = ("PeelHip", "PeelBack", "PeelChest", "PeelArmL", "PeelShinL", "PeelThighR")
 
 # ---------------------------------------------------------------- his key poses
@@ -173,35 +175,47 @@ def kill(an, ctx, f):
     monster_body(an, f, ctx)
     v = victim(an, ctx, f)
     Tm = an.rest_delta("UpperTorso")
-    hb = pl.to_blender(v.head_world())
-    hx = hb.to_3x3().col[0].normalized()
-    hz = hb.to_3x3().col[2].normalized()  # the back of their head
+    body = G.Body(pl, v.parts(), KM)
+    hold = K.smoothstep(GRAB - 3, GRAB, f) * (1 - K.smoothstep(DROP, DROP + 3, f))  # hands on the head
     for side, sx in SIDES:
         r0 = an.pb[f"{side}LowerArm"].bone.tail_local.copy()
-        # his left claw on their right side of the head (both at +x), a little behind the ear
-        grip = hb.translation + hx * sx * (0.62 * KM + 0.05) + hz * 0.03
+        # his left claw on their right side of the head (both at +x): the palm flat on the side of
+        # the head, the fingers up over the crown and curled down onto it, the thumb by the jaw
+        pt, n, along = body.surface("Head", (sx * 0.6, 0.05, 0.08), (sx, 0, 0), (0, 1, 0.3))
         if f <= GRAB:
             back = r0 + Vector((sx * 0.12, 0.38, 0.12))  # swung back behind him, claws open
             mid = Vector((sx * 0.55, -0.5, 1.6))
-            target = T((0, r0), (4, r0 + Vector((0, -0.04, 0))), (COIL, back, "io"), (COIL + 3, back + Vector((0, 0.03, 0.02))),
-                       (16, mid, "i"), (GRAB, grip, "o"), arc=True)(f)
-        elif f <= DROP:
-            target = grip
+            free = T((0, r0), (4, r0 + Vector((0, -0.04, 0))), (COIL, back, "io"), (COIL + 3, back + Vector((0, 0.03, 0.02))),
+                     (16, mid, "i"), (GRAB, pt + n * 0.06, "o"), arc=True)(f)
         else:
             if "rel_" + side not in ctx:
-                ctx["rel_" + side] = grip
-            rel = ctx["rel_" + side]
-            target = T((DROP, rel), (DROP + 3, rel + Vector((sx * 0.08, 0.02, 0.04)), "o3"), (70, rel + Vector((sx * 0.06, 0.04, 0.0))),
-                       (90, r0 + Vector((0, -0.1, 0.12)), "io"), (LENGTH, r0 + Vector((0, -0.08, 0.08))))(f)
-        hand_dir = (-hx * sx * 0.3 + Vector((0, 0, 1)) * 0.6 - hz * 0.2).normalized() if GRAB - 2 <= f <= DROP else None
+                ctx["rel_" + side] = pt + n * 0.06
+            rel = ctx["rel_" + side] if f > DROP else pt + n * 0.06
+            free = T((DROP, rel), (DROP + 3, rel + Vector((sx * 0.08, 0.02, 0.04)), "o3"), (70, rel + Vector((sx * 0.06, 0.04, 0.0))),
+                     (90, r0 + Vector((0, -0.1, 0.12)), "io"), (LENGTH, r0 + Vector((0, -0.08, 0.08))))(f)
+            if f <= DROP:
+                ctx["rel_" + side] = pt + n * 0.06
         up = K.window(f, TWIST, 48, SNAP, SNAP + 4)  # elbows rise for the twist, whip through the snap
         pole = Tm.to_3x3() @ Vector((sx * 1.0, 0.2, -0.4)).lerp(Vector((sx * 0.8, 0.3, 0.5)), up)
-        K.reach(an, side, target, pole, hand_dir, -hx * sx)
+        if hold > 0:
+            G.grip_hand(an, side, pt, n, along, pole, PALM, weight=hold, free_wrist=free)
+        else:
+            K.reach(an, side, free, pole)
     pose = {}
     for side, _ in SIDES:
         pose.update(K.finger_curl(an, side, FINGERS(f), spread=10 * K.window(f, 4, COIL, GRAB - 1, GRAB)))
     for name, rots in pose.items():
         an.pb[name].rotation_quaternion = A.bone_quat(an.pb[name].bone, rots)
+    if hold > 0:  # the fingers wrap round the head until they touch it
+        for side, sx in SIDES:
+            curls = G.wrap_fingers(an, side, body, spread=4.0, weight=hold)
+            if os.environ.get("KILL_DEBUG") and f in (30, 46):
+                pt, n, along = body.surface("Head", (sx * 0.6, 0.05, 0.08), (sx, 0, 0), (0, 1, 0.3))
+                pp, d, faces = G.palm(an, side, PALM)
+                tips = {fn: round(body.distance(G._chain(an, side, fn)[-1].tail) / KM, 2) for fn in G.FINGERS}
+                print("GRIP", f, side, "palm off by", round((pp - pt).length / KM, 2), "studs; hand vs along",
+                      round(math.degrees(d.angle(along))), "palm vs -n", round(math.degrees(faces.angle(-n))),
+                      "curls", {k: [round(x) for x in c] for k, c in curls.items()}, "tip dist (studs)", tips)
     ctx["vhead"] = pl.to_blender(v.head_world()).translation
     return v
 

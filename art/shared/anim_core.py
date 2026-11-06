@@ -63,7 +63,10 @@ def bone_quat(bone, rots):
     Rinv = bone.matrix_local.to_3x3().inverted()
     q = Quaternion()
     for axis, deg in rots:
-        a = LOCAL[axis] if axis in LOCAL else Rinv @ AX[axis]
+        if isinstance(axis, Vector):  # an axis given as a vector in rest (armature) space
+            a = Rinv @ axis
+        else:
+            a = LOCAL[axis] if axis in LOCAL else Rinv @ AX[axis]
         q = Quaternion(a.normalized(), math.radians(deg)) @ q
     return q
 

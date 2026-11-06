@@ -298,18 +298,34 @@ def palm_axis(an, side):
                key=lambda kv: kv[1].dot(inward))[0]
 
 
+PALM_AXES = {"x": Vector((1, 0, 0)), "-x": Vector((-1, 0, 0)), "z": Vector((0, 0, 1)), "-z": Vector((0, 0, -1))}
+
+
 def finger_curl(an, side, amount, spread=0.0, skip=()):
-    """Curls every finger bone on a side (left-side degrees; mirrored for the right)."""
+    """Curls every finger bone on a side toward the palm by `amount` degrees per joint (the
+    thumb less), and fans the fingers apart by `spread` degrees (in the plane of the palm).
+    Each joint bends about the axis across its own bone and the palm's facing, so the fingers
+    close onto the palm (a fist at ~90) whatever the rig's bone rolls."""
+    hand = an.pb[f"{side}Hand"].bone
+    palm = (hand.matrix_local.to_3x3() @ PALM_AXES[palm_axis(an, side)]).normalized()
     out = {}
     names = ("Thumb", "Index", "Middle", "Ring", "Pinky")
     for i, fname in enumerate(names):
+        if fname in skip:
+            continue
         for seg in (1, 2, 3):
             b = f"{side}{fname}{seg}"
-            if b in an.pb and fname not in skip:
-                rots = [("x", -amount * (0.6 if fname == "Thumb" else 1.0) * (1.25 if seg > 1 else 1.0))]
-                if seg == 1 and spread:
-                    rots.append(("z", spread * (i - 2) * (1 if side == "Left" else -1)))
-                out[b] = rots
+            if b not in an.pb:
+                continue
+            y = (an.pb[b].bone.matrix_local.to_3x3() @ Vector((0, 1, 0))).normalized()
+            axis = y.cross(palm)
+            if axis.length < 1e-6:
+                continue
+            rots = [(axis.normalized(), amount * (0.6 if fname == "Thumb" else 1.0) * (1.25 if seg > 1 else 1.0))]
+            if seg == 1 and spread and fname != "Thumb":
+                fan = 1 if side == "Left" else -1
+                rots.append((palm, spread * (i - 2.5) * fan))
+            out[b] = rots
     return out
 
 
@@ -342,9 +358,10 @@ def run_kill(blend, rig_name, length, k, distance, fn, out_rbxmx, preview_blend,
     anything fn wants to keep between frames. Saves the blend, writes the .rbxmx, and saves a
     preview blend with the victim as boxes and a first-person camera on its head.
 
-    play=True: the monster's `action` is already animated (e.g. edited by hand in Blender) and is
-    left exactly as it is; each frame of it is played and fn only works out the victim
-    (ctx["play"] is True)."""
+    play=True: the monster's `action` is already animated (e.g. edited by hand in Blender): it's
+    played rather than made, and fn works out the victim against it (ctx["play"] is True); fn may
+    key a few of his bones into it (the copy in `action`; the original is kept as
+    "<action>_source")."""
     import anim_core as A
     bpy.ops.wm.open_mainfile(filepath=os.path.abspath(blend))
     rig = bpy.data.objects[rig_name]
@@ -354,7 +371,21 @@ def run_kill(blend, rig_name, length, k, distance, fn, out_rbxmx, preview_blend,
     rig.animation_data_create()
     trs, parts = [], []
     if play:
-        act = bpy.data.actions[action]
+        # the hand-made action is kept as it is in "<action>_source"; each run starts from a fresh
+        # copy of it, so whatever fn keys into it (e.g. a hand fitted to the player) never piles up
+        src = bpy.data.actions.get(action + "_source")
+        if src is None:
+            src = bpy.data.actions[action].copy()
+            src.name = action + "_source"
+            src.use_fake_user = True
+        old = bpy.data.actions.get(action)
+        if old:
+            old.name = action + "_old"
+        act = src.copy()
+        act.name = action
+        act.use_fake_user = True
+        if old:
+            bpy.data.actions.remove(old)
         rig.animation_data.action = act
         for f in range(length + 1):
             bpy.context.scene.frame_set(f)

@@ -36,6 +36,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(1, os.path.normpath(os.path.join(HERE, "..", "..", "shared")))
 import anim_core as A  # noqa: E402
 import kill_anim as KA  # noqa: E402
+import grip as G  # noqa: E402
 import kill_core as K  # noqa: E402
 from kill_anim import Track as T  # noqa: E402
 
@@ -49,6 +50,10 @@ SOCKET = Vector((0.0, -0.43, 2.11))
 SOCKET_N = Vector((0.0, -0.965, 0.262))
 NECK = Vector((0.0, 1.0, -0.45))  # the front of their neck, in their torso's frame
 CHEST_IN = Vector((0.0, 0.2, -0.05))  # where his wrist ends up: in the middle of their chest
+# his right hand round their throat: the palm on the front of their neck (the bottom of the head),
+# the fingers round its right side toward the back, the thumb round the left (torso frame, studs)
+THROAT, THROAT_N, THROAT_ALONG = Vector((0.0, 1.2, -0.6)), Vector((0, 0, -1)), Vector((1, 0, 0))
+PALM = 0.025  # half the thickness of his hand (m)
 SIDES = (("Left", 1.0), ("Right", -1.0))
 
 # ---------------------------------------------------------------- his key poses
@@ -170,17 +175,21 @@ def victim(an, ctx, f):
     if f <= GRAB:
         return KA.apply_flinch(va, f, FLINCH, look_at=socket)
     if f < DROP:
-        grip = pl.point_to_victim(an.pb["RightHand"].matrix @ ctx["grip_local"])
+        grip = ctx["palm_v"]  # his palm, on their throat
         R = KA.euler(H_ROT(f))
         pin = K.window(f, STAB - 1, STAB, RIP - 5, RIP - 1)
         if pin > 0:  # impaled: their chest turned onto his claw (his wrist), wherever his arm goes
             want = pl.point_to_victim(an.pb["LeftHand"].head) - grip
-            have = R.to_3x3() @ (CHEST_IN - NECK)
+            have = R.to_3x3() @ (CHEST_IN - THROAT)
             q = have.rotation_difference(want)
             if q.angle > math.radians(50):  # never wrenched round further than a body would go
                 q = Quaternion().slerp(q, math.radians(50) / q.angle)
             R = Quaternion().slerp(q, pin).to_matrix().to_4x4() @ R
-        torso = Matrix.Translation(grip - R.to_3x3() @ NECK) @ R
+        torso = Matrix.Translation(grip - R.to_3x3() @ THROAT) @ R
+        if f < GRAB + 4:  # yanked into his hand from where they stood
+            t0 = KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH).translation
+            torso.translation = t0.lerp(torso.translation, K.smoothstep(GRAB, GRAB + 4, f))
+        ctx["R_prev"] = R
         wrist = pl.point_to_victim(an.pb["RightLowerArm"].tail)  # his hand on their neck
         elbow = pl.point_to_victim(an.pb["RightLowerArm"].head)
         claw = ctx.get("claw_v", wrist)  # his claw arm, last frame (it's posed after them)
@@ -190,6 +199,10 @@ def victim(an, ctx, f):
         points = {"phone": socket, "claw": raised,
                   "wound": torso @ Vector((1.1, 0.2, -1.8)), "ahead": torso @ Vector((0, 1.0, -6))}
         v = va.build(f, torso, head=HEAD_H(f), look_at=KA.look_blend(f, LOOK, points), lag={"head": 2})
+        # his hand round their throat holds the head: it can only turn a little on the neck
+        qh = v.T["Head"].to_quaternion()
+        if qh.angle > math.radians(18):
+            v.T["Head"] = Quaternion().slerp(qh, math.radians(18) / qh.angle).to_matrix().to_4x4()
         down = Vector((0, -0.25, 0))
         targets = {"Left Arm": {"wrist": wrist.lerp(elbow, 0.12) + down, "claw": claw + down,
                                 "reach": raised},
@@ -220,11 +233,32 @@ CLAW = KA.Live(
 def kill(an, ctx, f):
     pl = ctx["pl"]
     ctx.setdefault("va", KA.VictimAnimator())
-    if ctx["play"]:  # his Kill action is already animated (edited by hand): just play it
-        if f == GRAB:
-            neck = pl.point_to_blender(KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH) @ NECK)
-            ctx["grip_local"] = an.pb["RightHand"].matrix.inverted() @ neck
+    if ctx["play"]:  # his Kill action is already animated (edited by hand): play it, and only
+        # turn his right hand onto their throat and close its fingers round it (keyed into it)
+        hold = K.smoothstep(GRAB - 3, GRAB, f) * (1 - K.smoothstep(DROP - 2, DROP + 1, f))
+        if hold > 0:
+            R = ctx.get("R_prev", KA.euler(H_ROT(max(f, GRAB))))
+            r3 = pl.to_blender(R).to_3x3().normalized()
+            pb = an.pb["RightHand"]
+            q_user = pb.rotation_quaternion.copy()
+            an.orient("RightHand", r3 @ THROAT_ALONG, K.palm_axis(an, "Right"), -(r3 @ THROAT_N))
+            q = pb.rotation_quaternion.copy()
+            if q.dot(q_user) < 0:
+                q = -q
+            pb.rotation_quaternion = q_user.slerp(q, hold)
+            bpy.context.view_layer.update()
+            ctx["palm_v"] = pl.point_to_victim(G.palm(an, "Right", PALM)[0])
         v = victim(an, ctx, f)
+        if hold > 0:
+            body = G.Body(pl, v.parts(), KM)
+            curls = G.wrap_fingers(an, "Right", body, spread=4.0, weight=hold)
+            if os.environ.get("KILL_DEBUG") and f in (24, 50):
+                pp = G.palm(an, "Right", PALM)[0]
+                print("GRIP", f, "palm to body", round(body.distance(pp) / KM, 2), "curls",
+                      {k: [round(x) for x in c] for k, c in curls.items()},
+                      "tips", {fn: round(body.distance(G._chain(an, "Right", fn)[-1].tail) / KM, 2) for fn in G.FINGERS})
+            for b in ["RightHand"] + [pb.name for fn in G.FINGERS for pb in G._chain(an, "Right", fn)]:
+                an.pb[b].keyframe_insert("rotation_quaternion", frame=f, group=b)
     else:
         v = pose_him(an, ctx, f)
     ctx["claw_v"] = pl.point_to_victim(an.pb["LeftLowerArm"].head.lerp(an.pb["LeftLowerArm"].tail, 0.7))
@@ -260,9 +294,7 @@ def pose_him(an, ctx, f):
     hold = GRAB - 2 <= f <= DROP
     K.reach(an, "Right", ctx["hand_track"](f), Tm.to_3x3() @ Vector((-0.8, 0.3, -0.6)),
             Vector((0.5, -0.75, 0.2)).normalized() if hold else None, Vector((0, -1, 0)))
-    if f == GRAB:
-        neck = pl.point_to_blender(KA.flinch_torso(KA.VictimAnimator(), GRAB, FLINCH) @ NECK)
-        ctx["grip_local"] = an.pb["RightHand"].matrix.inverted() @ neck
+    ctx["palm_v"] = pl.point_to_victim(G.palm(an, "Right", PALM)[0])
     v = victim(an, ctx, f)
     # the claw: raised high, driven down through their chest, held, twisted, ripped out, flicked
     if f < DROP:
