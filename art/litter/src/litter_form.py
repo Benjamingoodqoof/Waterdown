@@ -289,7 +289,7 @@ def form(an, phi, f):
 def scatter(an, phi, f):
     setup(an)
     shudder = ramp(f, 0, 10) * (1 - ramp(f, 12, 14))
-    rise = 1 - 0.12 * shudder - 0.88 * ramp(f, 14, 46)
+    rise = 1 - 0.12 * ramp(f, 0, 10) - 0.88 * ramp(f, 12, 46)  # crouches, and keeps going down as it lets go
     sink = ramp(f, 40, 76)
     body(an, rise, 0.0, sink)
     if f == 0:
