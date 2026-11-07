@@ -210,13 +210,21 @@ well as rotation):
 
 | Action | Length | Loop | Feel |
 |---|---|---|---|
-| `Form` | 110 frames (3.7 s) | no | The creatures lie heaped in a ring on the floor, facing in. The dark mass that holds them together rises out of the floor in the middle, and as each part of it comes up they leap onto it and cling in place, from the legs up, while it unfolds and stands. The head creatures go on last; it rears up, arms flung wide, mouth open, and settles into the first frame of `Idle` |
-| `Scatter` | 84 frames (2.8 s) | no | From the first frame of `Idle` it shudders and tightens, then bursts: the creatures leap off from the top down, land in a wide ring round it, skitter outward and stop, facing out, while the mass slumps into a heap and sinks back into the floor |
+| `Form` | 120 frames (4 s) | no | The creatures stand on the floor in a ring round it, facing in. The dark mass that holds them together rises out of the floor in the middle, and from the legs up they scuttle in to its foot, turn up onto it and crawl up over the ones already in place to their own spot, and settle. The head creatures go on last; it rears up, arms flung wide, mouth open, and settles into the first frame of `Idle` |
+| `Scatter` | 84 frames (2.8 s) | no | From the first frame of `Idle` it shudders and tightens, then lets go: from the top down the creatures crawl fast down it to the floor, turn the right way up, scuttle outward and stop in a ring round it, facing out, while the mass slumps into a heap and sinks back into the floor |
 
-In the game: have litterlings run together to a spot, then swap them for the stack playing
-`Form` (its first frame is the heap they'd make), and blend into `Idle` when it ends. For the
-reverse, play `Scatter` and at its end swap the stack for litterlings standing where its
-creatures landed (a ring about 4.5 to 7 studs from its centre, with the stack 10 studs tall). The mass is under
+Nothing hops and nothing floats: on the floor every creature rests on it, and on the way up or
+down it keeps to the outside of the stack, belly to it.
+
+In the game: have litterlings run to the creatures' places on `Form`'s first frame, swap them
+for the stack playing `Form`, and blend into `Idle` when it ends. For the reverse, play
+`Scatter` and at its end swap the stack for litterlings standing where its creatures stopped (a
+ring about 5 to 7 studs from its centre, with the stack 10 studs tall). Each creature rides its
+own `Slot_` bone, so the places can be read in the game with `bone.TransformedWorldCFrame`: the
+bone sits at the creature's centre, with its -Z the way it faces. Read them just before the track
+ends (or pause it on its last frame), then hide the stack and spawn the litterlings in the same
+frame. The creatures vary from 0.85 to 1.3 times a litterling's size, and with the stack scaled
+to 10 studs a litterling at its export size needs scaling about 1.1 to 1.7 times to match them. The mass is under
 the floor at the start of `Form` and the end of `Scatter`, so a solid floor hides it. The hands
 and feet (the creatures on them) stay on the mass and go under the floor with it.
 
