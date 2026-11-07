@@ -190,8 +190,8 @@ mobile, cheaper litterlings are possible with fewer legs' segments and less hair
 
 ## Animations
 
-All six are in place (the Humanoid or your script does the moving), 30 fps, keyed on every
-frame, and loop seamlessly (the last frame equals the first). Legs were solved with IK while
+The walk cycles and idles are in place (the Humanoid or your script does the moving), 30 fps,
+keyed on every frame, and loop seamlessly (the last frame equals the first). Legs were solved with IK while
 animating so planted feet don't slide, then written out as plain rotation keys, so nothing
 needs a constraint or a special exporter.
 
@@ -204,6 +204,25 @@ higher ones later.
 | `Idle` | 120 frames (4 s) | yes | Hunched and heaving, two slow breaths; the head turns slowly, looking about; the finger legs flex; the creatures fidget and look round |
 | `Walk` | 40 frames (1.33 s) | yes | A heavy, hunched lumber with flat-footed steps; the arms swing low; each step wobbles up the stack |
 | `Run` | 24 frames (0.8 s) | yes | A heavy, rolling charge: it throws its weight from foot to foot, every thud jolting the creatures; the long arms swing big, reaching up in front with the finger legs spread wide as if clawing at you, and curling as they pull back |
+
+**The stack forming and breaking up** (one-shots, every creature slot keyed in position as
+well as rotation):
+
+| Action | Length | Loop | Feel |
+|---|---|---|---|
+| `Form` | 110 frames (3.7 s) | no | The creatures lie heaped in a ring on the floor, facing in. The dark mass that holds them together rises out of the floor in the middle, and as each part of it comes up they leap onto it and cling in place, from the legs up, while it unfolds and stands. The head creatures go on last; it rears up, arms flung wide, mouth open, and settles into the first frame of `Idle` |
+| `Scatter` | 84 frames (2.8 s) | no | From the first frame of `Idle` it shudders and tightens, then bursts: the creatures leap off from the top down, land in a wide ring round it, skitter outward and stop, facing out, while the mass slumps into a heap and sinks back into the floor |
+
+In the game: have litterlings run together to a spot, then swap them for the stack playing
+`Form` (its first frame is the heap they'd make), and blend into `Idle` when it ends. For the
+reverse, play `Scatter` and at its end swap the stack for litterlings standing where its
+creatures landed (a ring about 4.5 to 7 studs from its centre, with the stack 10 studs tall). The mass is under
+the floor at the start of `Form` and the end of `Scatter`, so a solid floor hides it. The hands
+and feet (the creatures on them) stay on the mass and go under the floor with it.
+
+These need the stack model exported with them: each creature's legs are now skinned to that
+creature alone (they used to stretch to the neighbour they grip), so they can leave the body
+without dragging strands with them. Re-import `Stack.fbx` along with the new animations.
 
 **The litterling:**
 
@@ -225,7 +244,8 @@ stack's run.
 **Exporting them yourself:** open `export/Stack_Roblox.blend` or
 `export/Litterling_Roblox.blend`. They match the models you imported. Pick an action on
 `Stack_Rig` or `Litterling_Rig` and export it with your plugin. Only `LowerTorso` (the stack)
-and `Body` (the litterling) have translation keys; every other bone is rotation only.
+and `Body` (the litterling) have translation keys, plus the stack's `Slot_` bones in `Form` and
+`Scatter`; every other bone is rotation only.
 
 ## Kill
 
@@ -266,6 +286,7 @@ helpers from `../poster_monster/src`, `../props/src` and `../shared`. Run from `
 ```bash
 python3 litter_build.py ..                     # both models, rigs, weights and baked textures (--only litterling|stack)
 python3 litter_animate.py ..                   # keyframe Idle, Walk and Run for both (--only stack|litterling)
+python3 litter_form.py ..                      # the stack's Form and Scatter
 python3 litter_render.py .. ../renders --shots stack_front,stack_three,stack_back   # previews (also stack_side, stack_head, stack_hand, litterling_close, litterling_face, litterling_side, swarm)
 python3 litter_export.py .. ../export          # FBX (model + one per animation), GLB, Roblox .blend and textures/roblox
 
@@ -281,3 +302,4 @@ Everything is seeded, so a rebuild gives the same swarm.
 - **Litterling proportions, leg layout, the stack's skeleton and where each creature sits:** `litter_common.py`
 - **The creature's body, skin, eyes, mouth, hair and legs, the stack's mass, and the rigs:** `litter_build.py`
 - **The animations:** `litter_animate.py`, using the shared tools in `../shared/anim_core.py`
+- **Form and Scatter:** `litter_form.py`

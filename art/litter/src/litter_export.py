@@ -50,7 +50,7 @@ def main():
     a = ap.parse_args()
     root, out = os.path.abspath(a.litter), os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
-    export(os.path.join(root, "stack.blend"), "Stack_Rig", "Stack", out, ("Idle", "Walk", "Run", "Kill"))
+    export(os.path.join(root, "stack.blend"), "Stack_Rig", "Stack", out, ("Idle", "Walk", "Run", "Kill", "Form", "Scatter"))
     export(os.path.join(root, "litterling.blend"), "Litterling_Rig", "Litterling", out)
     tex = os.path.join(root, "textures")
     rbx = os.path.join(tex, "roblox")

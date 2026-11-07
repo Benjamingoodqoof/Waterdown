@@ -524,8 +524,9 @@ def build_stack():
             knee = hip.lerp(grip, 0.45) + v * rng.uniform(0.07, 0.11)
             hook = grip + (cj - grip).normalized() * 0.02
             ctl = [hip, hip.lerp(knee, 0.5) + v * 0.02, knee, knee.lerp(grip, 0.55) + v * 0.015, grip, hook]
-            leg(meshes[stack_mesh_name(ni)], ctl, 0.011 * si, 0.003 * si,
-                lambda t, a=ni, b=nj: blend(f"Slot_{a}", f"Slot_{b}", smooth(0.35, 0.8, t)),
+            # the whole leg goes with its own creature, so the creatures can climb on and leap off
+            # the stack (Form, Scatter) without their legs stretching back to their neighbours
+            leg(meshes[stack_mesh_name(ni)], ctl, 0.011 * si, 0.003 * si, lambda t, a=ni: {f"Slot_{a}": 1.0},
                 n=5, per=3, joints=(0.4,), hairs=1, seed=i)
         if not ni.endswith(("Arm5", "Leg4", "Head1")) and rng.random() < 0.8:  # a free leg, hanging out of the pile
             out = V(ci.x, ci.y + 0.05, 0).normalized() if abs(ci.x) > 0.05 else V(0, -1, 0)
